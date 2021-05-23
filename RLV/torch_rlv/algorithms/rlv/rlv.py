@@ -18,7 +18,7 @@ class RLV:
         self.env = env
         self.agent = agent
         self.inverse_model = InverseModelNetwork(beta=0.0003, input_dims=6)
-        self.iterations = 500  # TODO
+        self.iterations = 80000  # TODO
 
     def run(self):
         for x in range(0, self.iterations):

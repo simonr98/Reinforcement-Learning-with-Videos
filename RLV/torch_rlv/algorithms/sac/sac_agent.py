@@ -49,7 +49,6 @@ class Agent:
     def choose_action(self, observation):
         state = T.Tensor([observation]).to(self.actor.device)
         actions, _ = self.actor.sample(state, reparameterize=False)
-
         return actions.cpu().detach().numpy()[0]
 
     def remember(self, state, action, reward, new_state, done):

@@ -43,8 +43,23 @@ repetitions: 1   # repeat 8 times
 params:
   action_space_type: 'discrete'
   env_name: 'acrobot'
-  algo_name: 'sac'
-  n_games: 5000
+  algo_name: 'rlv'
+  n_games: 80000
+  pre_steps: 0
+  layer1_size: 256
+  layer2_size: 256
+  lr: 0.003
+
+---
+name: "rlv"
+path: "./output/"
+repetitions: 1   # repeat 8 times
+
+params:
+  action_space_type: 'discrete'
+  env_name: 'acrobot'
+  algo_name: 'rlv'
+  n_games: 1
   pre_steps: 0
   layer1_size: 256
   layer2_size: 256
