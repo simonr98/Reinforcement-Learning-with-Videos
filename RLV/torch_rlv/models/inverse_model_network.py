@@ -32,13 +32,7 @@ class InverseModelNetwork(nn.Module):
         x = F.relu(self.fc2(x))
         x = F.relu(self.fc3(x))
         q = self.q(x)
-        q = F.gumbel_softmax(q, hard=True)
         return q
 
-    def save_checkpoint(self):
-        T.save(self.state_dict(), self.checkpoint_file)
-
-    def load_checkpoint(self):
-        self.load_state_dict(T.load(self.checkpoint_file))
 
 
