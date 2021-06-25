@@ -1,6 +1,6 @@
 from ..environments.utils import get_environment
 from ..algorithms.utils import init_algorithm
-from ..algorithms.sac.sac_agent import get_agent
+from RLV.torch_rlv.algorithms.sac.sac_old.sac_agent import get_agent
 
 
 # dictionary as input

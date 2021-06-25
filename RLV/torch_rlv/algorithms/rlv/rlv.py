@@ -1,10 +1,9 @@
 import torch as T
 from RLV.torch_rlv.models.inverse_model import InverseModelNetwork
-from RLV.torch_rlv.algorithms.sac.sac import SAC
+from RLV.torch_rlv.algorithms.sac.sac_old.sac import SAC
 from RLV.torch_rlv.visualizer.plot import plot_learning_curve, plot_env_step, animate_env_obs
 import numpy as np
 from datetime import datetime
-import wandb
 
 
 def set_reward(reward):

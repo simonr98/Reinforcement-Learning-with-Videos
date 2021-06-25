@@ -1,4 +1,4 @@
-from RLV.torch_rlv.algorithms.sac.sac import SAC
+from RLV.torch_rlv.algorithms.sac.sac_old.sac import SAC
 from RLV.torch_rlv.algorithms.rlv.rlv import RLV
 
 
