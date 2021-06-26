@@ -2,7 +2,7 @@ import os
 
 import gym
 import multiworld
-import RLV.torch_rlv.environments.custom_envs as custom_envs
+import custom_envs
 import numpy as np
 import matplotlib.pyplot as plt
 from gym.envs.registration import register
@@ -11,6 +11,8 @@ from stable_baselines3.common.results_plotter import load_results, ts2xy
 from stable_baselines3.common.noise import NormalActionNoise
 from stable_baselines3.common.callbacks import BaseCallback
 from multiworld.core.flat_goal_env import FlatGoalEnv
+from stable_baselines3.sac.sac import SAC
+#from RLV.torch_rlv.algorithms.sac.sac import SAC
 
 
 class SaveOnBestTrainingRewardCallback(BaseCallback):
@@ -80,7 +82,7 @@ if __name__ == '__main__':
     n_actions = env.action_space.shape[-1]
     action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
     callback = SaveOnBestTrainingRewardCallback(check_freq=1000, log_dir=log_dir)
-    model = SAC('MlpPolicy', env, action_noise=action_noise, verbose=1, learning_starts=1000)
+    model = SAC(policy='MlpPolicy', env=env, action_noise=action_noise, verbose=1, learning_starts=1000)
     model.learn(total_timesteps=int(250000), callback=callback)
 
     plot_results(log_dir)
