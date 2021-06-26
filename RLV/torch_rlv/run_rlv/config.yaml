@@ -24,6 +24,8 @@ reps_in_parallel: 8 # number of repetitions in each job that are executed in par
 params:
   # this is where you specify all parameters needed for your experiment.
   # the tree structure you define here will be translated to a nested python dictionary
+  # env_name: 'visual_door_opener_multi_world'
+  # env_name: 'visual_door_opener_multi_world'
   env_name: 'acrobot_continuous'
   algo_name: 'sac'
 

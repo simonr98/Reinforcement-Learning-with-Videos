@@ -1,3 +1,5 @@
+from typing import Any
+
 import torch as T
 from RLV.torch_rlv.models.inverse_model_network import InverseModelNetwork
 from stable_baselines3 import SAC

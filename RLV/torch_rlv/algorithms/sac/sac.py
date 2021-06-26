@@ -83,8 +83,6 @@ class SAC(OffPolicyAlgorithm):
         train_freq: Union[int, Tuple[int, str]] = 1,
         gradient_steps: int = 1,
         action_noise: Optional[ActionNoise] = None,
-        replay_buffer_class: Optional[ReplayBuffer] = None,
-        replay_buffer_kwargs: Optional[Dict[str, Any]] = None,
         optimize_memory_usage: bool = False,
         ent_coef: Union[str, float] = "auto",
         target_update_interval: int = 1,
@@ -94,12 +92,14 @@ class SAC(OffPolicyAlgorithm):
         use_sde_at_warmup: bool = False,
         tensorboard_log: Optional[str] = None,
         create_eval_env: bool = False,
-        policy_kwargs: Dict[str, Any] = None,
         verbose: int = 0,
         seed: Optional[int] = None,
         device: Union[th.device, str] = "auto",
         _init_setup_model: bool = True,
+        project_name = 'sac',
+        run_name = 'sac_run'
     ):
+
 
         super(SAC, self).__init__(
             policy,
@@ -114,9 +114,6 @@ class SAC(OffPolicyAlgorithm):
             train_freq,
             gradient_steps,
             action_noise,
-            replay_buffer_class=replay_buffer_class,
-            replay_buffer_kwargs=replay_buffer_kwargs,
-            policy_kwargs=policy_kwargs,
             tensorboard_log=tensorboard_log,
             verbose=verbose,
             device=device,
@@ -136,6 +133,9 @@ class SAC(OffPolicyAlgorithm):
         self.ent_coef = ent_coef
         self.target_update_interval = target_update_interval
         self.ent_coef_optimizer = None
+
+        self.project_name = project_name
+        self.run_name = run_name
 
         if _init_setup_model:
             self._setup_model()
@@ -263,13 +263,6 @@ class SAC(OffPolicyAlgorithm):
                 polyak_update(self.critic.parameters(), self.critic_target.parameters(), self.tau)
 
         self._n_updates += gradient_steps
-
-        self.logger.record("train/n_updates", self._n_updates, exclude="tensorboard")
-        self.logger.record("train/ent_coef", np.mean(ent_coefs))
-        self.logger.record("train/actor_loss", np.mean(actor_losses))
-        self.logger.record("train/critic_loss", np.mean(critic_losses))
-        if len(ent_coef_losses) > 0:
-            self.logger.record("train/ent_coef_loss", np.mean(ent_coef_losses))
 
     def learn(
         self,
