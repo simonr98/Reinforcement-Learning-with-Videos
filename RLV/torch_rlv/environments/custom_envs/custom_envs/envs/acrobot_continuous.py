@@ -3,7 +3,6 @@ from gym import spaces
 from gym.envs.classic_control.acrobot import AcrobotEnv
 
 
-
 class AcrobotContinuousEnv(AcrobotEnv):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

@@ -2,7 +2,7 @@ import numpy as np
 import torch as T
 import torch.nn.functional as F
 from RLV.torch_rlv.buffer.replay_buffer import ReplayBuffer
-from RLV.torch_rlv.models.sac_networks import ActorNetwork, ActorNetworkDiscrete, CriticNetwork, ValueNetwork
+from RLV.torch_rlv.models.old_sac.sac_networks import ActorNetwork, ActorNetworkDiscrete, CriticNetwork, ValueNetwork
 
 
 def get_agent(env, action_space_type, experiment):

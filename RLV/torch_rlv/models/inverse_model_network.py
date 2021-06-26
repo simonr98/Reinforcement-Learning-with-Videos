@@ -7,7 +7,7 @@ import torch.optim as optim
 
 class InverseModelNetwork(nn.Module):
 
-    def __init__(self, beta, input_dims, output_dims=3, fc1_dims=64, fc2_dims=64, fc3_dims=64, name='inverse', chkpt_dir='tmp/invese'):
+    def __init__(self, beta, input_dims, output_dims=3, fc1_dims=64, fc2_dims=64, fc3_dims=64, name='inverse', chkpt_dir='tmp/inverse'):
         super(InverseModelNetwork, self).__init__()
         self.beta = beta
         self.input_dims = input_dims
@@ -34,5 +34,10 @@ class InverseModelNetwork(nn.Module):
         q = self.q(x)
         return q
 
+    def save_checkpoint(self):
+        T.save(self.state_dict(), self.checkpoint_file)
+
+    def load_checkpoint(self):
+        self.load_state_dict(T.load(self.checkpoint_file))
 
 

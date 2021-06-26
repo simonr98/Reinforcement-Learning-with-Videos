@@ -1,16 +1,16 @@
 import os
 
 import gym
-import custom_envs
+import multiworld
+import RLV.torch_rlv.environments.custom_envs as custom_envs
 import numpy as np
 import matplotlib.pyplot as plt
 from gym.envs.registration import register
-from stable_baselines3 import SAC
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.results_plotter import load_results, ts2xy
 from stable_baselines3.common.noise import NormalActionNoise
 from stable_baselines3.common.callbacks import BaseCallback
-
+from multiworld.core.flat_goal_env import FlatGoalEnv
 
 
 class SaveOnBestTrainingRewardCallback(BaseCallback):
@@ -48,6 +48,7 @@ def moving_average(values, window):
     weights = np.repeat(1.0, window) / window
     return np.convolve(values, weights, 'valid')
 
+
 def plot_results(log_folder, title='Learning Curve'):
     x, y = ts2xy(load_results(log_folder), 'timesteps')
     y = moving_average(y, window=50)
@@ -61,12 +62,19 @@ def plot_results(log_folder, title='Learning Curve'):
     plt.title(title + " Smoothed")
     plt.show()
 
-if __name__ == '__main__':
 
+if __name__ == '__main__':
     log_dir = "/tmp/gym/"
     os.makedirs(log_dir, exist_ok=True)
 
+    # base_env = gym.make('SawyerPush-v0')
+    # base_env_ = FlatGoalEnv(base_env)
+
+    # #base_env = gym.make('FetchPush-v1')
+    # env = gym.wrappers.FlattenObservation(base_env_)
+
     env = gym.make('AcrobotContinuous-v1')
+
     env = Monitor(env, log_dir)
 
     n_actions = env.action_space.shape[-1]

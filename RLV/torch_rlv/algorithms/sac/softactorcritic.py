@@ -2,7 +2,7 @@ import os
 
 import numpy as np
 import matplotlib.pyplot as plt
-from stable_baselines3 import SAC
+from RLV.torch_rlv.algorithms.sac.sac import SAC
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.results_plotter import load_results, ts2xy
 from stable_baselines3.common.noise import NormalActionNoise

@@ -43,8 +43,6 @@ class RLV(SAC):
             self.inverse_model.warmup(warmup_steps=self.warmup_steps)
 
             # add encoder
-
-#             for
 #
 #
 #
