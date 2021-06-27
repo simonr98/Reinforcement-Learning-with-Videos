@@ -2,7 +2,7 @@ import os
 
 import gym
 import multiworld
-import custom_envs
+import RLV.torch_rlv.environments.custom_envs
 import numpy as np
 import matplotlib.pyplot as plt
 from gym.envs.registration import register
@@ -11,7 +11,8 @@ from stable_baselines3.common.results_plotter import load_results, ts2xy
 from stable_baselines3.common.noise import NormalActionNoise
 from stable_baselines3.common.callbacks import BaseCallback
 from multiworld.core.flat_goal_env import FlatGoalEnv
-from RLV.torch_rlv.algorithms.sac.sac import SAC
+# from RLV.torch_rlv.algorithms.sac.sac import SAC
+from stable_baselines3.sac.sac import SAC
 
 
 class SaveOnBestTrainingRewardCallback(BaseCallback):
@@ -70,11 +71,11 @@ if __name__ == '__main__':
 
     multiworld.register_all_envs()
 
-    base_env = gym.make('SawyerPush-v0')
-    env = FlatGoalEnv(base_env)
+    # base_env = gym.make('SawyerPush-v0')
+    # env = FlatGoalEnv(base_env)
 
-    # #base_env = gym.make('FetchPush-v1')
-    # env = gym.wrappers.FlattenObservation(base_env_)
+    base_env = gym.make('FetchPush-v1')
+    env = gym.wrappers.FlattenObservation(base_env)
 
     #env = gym.make('AcrobotContinuous-v1')
 

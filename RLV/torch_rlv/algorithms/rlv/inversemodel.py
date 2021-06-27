@@ -9,25 +9,40 @@ from datetime import datetime
 
 
 class InverseModel:
-    def __init__(self, beta=0.003, observations_space=None, action_space=None, batch_size=256, env=None):
+    def __init__(self, beta=0.0003, observation_space_dims=3, action_space_dims=1, batch_size=256, env=None,
+                 warmup_steps=500):
         self.beta = beta
-        self.observation_space = observations_space
-        self.action_space = action_space
+        self.observation_space_dims = observation_space_dims
+        self.warmup_steps = warmup_steps
+        self.action_space_dims = action_space_dims
         self.batch_size = batch_size
         self.env = env
-        self.input_dims = observations_space * 2
-        self.output_dims = action_space
-        self.network = InverseModelNetwork(beta=self.beta, input_dims=self.input_dims)
+        self.input_dims = observation_space_dims * 2
+        self.output_dims = action_space_dims
+        self.network = InverseModelNetwork(beta=self.beta, input_dims=self.input_dims,
+                                           output_dims=self.action_space_dims)
         self.loss = 0
 
-    def warmup(self, warmup_steps):
-        obs = self.env.reset()
+    def warmup(self):
+        obs = np.zeros((self.batch_size, self.observation_space_dims))
+        target_action = np.zeros((self.batch_size, self.action_space_dims))
+        obs_ = np.zeros((self.batch_size, self.observation_space_dims))
+        reward = np.zeros((self.batch_size, 1))
+        done = np.zeros((self.batch_size, 1))
 
-        for _ in range(0, warmup_steps):
-            target_action = self.env.action_space.sample()
-            obs_, reward, done, info = self.env.step(target_action)
+        obs[0] = self.env.reset()
 
-            input = T.cat(T.from_numpy(obs), T.from_numpy(obs_), dim=1).float()
+        for s in range(0, self.warmup_steps):
+            for c in range(0, self.batch_size-1):
+                target_action[c] = self.env.action_space.sample()
+                obs_[c], reward[c], done[c], info = self.env.step(target_action[c])
+
+                if done[c]:
+                    obs[c+1] = self.env.reset()
+                else:
+                    obs[c+1] = obs_[c]
+
+            input = T.cat((T.from_numpy(obs), T.from_numpy(obs_)), dim=1).float()
 
             obs_action_t = self.network(input)
 
@@ -37,8 +52,8 @@ class InverseModel:
 
             self.loss = self.calculate_loss(obs_action_t, target_action_t)
 
-            if _ % 50 == 0:
-                print(f"Warmup Step: {_} - Loss Inverse Model: {loss}")
+            if s % 50 == 0:
+                print(f"Warmup Step: {s} - Loss Inverse Model: {self.loss}")
 
             # Update Inverse Model
             self.update()

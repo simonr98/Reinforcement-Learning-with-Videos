@@ -4,8 +4,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import wandb
 from RLV.torch_rlv.algorithms.sac.sac import SAC
-# from stable_baselines3.sac.sac import SAC
-from RLV.torch_rlv.algorithms.sac.sac import SAC
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.results_plotter import load_results, ts2xy
 from stable_baselines3.common.noise import NormalActionNoise
@@ -13,7 +11,7 @@ from stable_baselines3.common.callbacks import BaseCallback
 
 
 class SoftActorCritic:
-    def __init__(self, policy='MlpPolicy', env_name=None,
+    def __init__(self, policy='MlpPolicy', env_name=None, config=None, wandb_log=False,
                  env=None, learning_rate=0.0003, buffer_size=1000000, learning_starts=1000,
                  batch_size=256, tau=0.005, gamma=0.99, train_freq=1, gradient_steps=1,  optimize_memory_usage=False,
                  ent_coef='auto', target_update_interval=1, target_entropy='auto', use_sde=False, sde_sample_freq=- 1,
@@ -21,6 +19,8 @@ class SoftActorCritic:
                  seed=None, device='auto', _init_setup_model=True, project_name='sac_experiment', run_name='test_sac'):
         self.log_dir = "/tmp/gym/"
         os.makedirs(self.log_dir, exist_ok=True)
+
+        self.config = config
 
         self.env = env
         self.env = Monitor(env, self.log_dir)
@@ -46,14 +46,12 @@ class SoftActorCritic:
                          sde_sample_freq=sde_sample_freq, use_sde_at_warmup=use_sde_at_warmup,
                          tensorboard_log=tensorboard_log, create_eval_env=create_eval_env,
                          verbose=verbose, seed=seed, device=device, _init_setup_model=_init_setup_model)
-        self.logger = wandb.init(project=project_name,
-                                 # config=config,  # file config
-                                 # group=groupname,  # group repetitions of same exp
-                                 name=run_name,
-                                 # job_type=recording_dir.split(os.path.sep)[-2],
-                                 # dir=recording_dir,
-                                 reinit=True,  # allow things to be run multiple times
-                                 settings=wandb.Settings(start_method="thread"))
+        if wandb_log:
+            self.logger = wandb.init(project=project_name,
+                                     config=self.config,
+                                     name=run_name,
+                                     reinit=True,  # allow things to be run multiple times
+                                     settings=wandb.Settings(start_method="thread"))
 
     def run(self, total_timesteps=int(250000), plot=False):
         self.model.learn(total_timesteps=total_timesteps, callback=self.callback)
@@ -130,7 +128,8 @@ class SaveOnBestTrainingRewardCallback(BaseCallback):
                 "Best mean reward": self.best_mean_reward,
                 "Last mean reward per episode": mean_reward}
 
-            wandb.log(logging_parameters)
+            if wandb_log:
+                wandb.log(logging_parameters)
         return True
 
 

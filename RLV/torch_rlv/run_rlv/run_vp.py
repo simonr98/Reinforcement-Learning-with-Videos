@@ -34,7 +34,9 @@ for i_episode in range(60):
     for t in range(100):
         env.render()
         action = env.action_space.sample()
+        print(action.shape)
         observation_, reward, done, info = env.step(action)
+        print(observation_.shape)
         observation = observation_
         if done:
             print("Episode finished after {} timesteps".format(t+1))
