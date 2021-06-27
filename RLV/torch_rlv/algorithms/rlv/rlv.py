@@ -47,8 +47,6 @@ class RLV(SAC):
         self.model = SoftActorCritic(policy='MlpPolicy', env_name=self.env_name, env=env, verbose=1, learning_starts=1000)
 
     def run(self):
-        #self.inverse_model.warmup()
-        data = pickle.load(open('../../human_data/hand_july_21_26_keep_all_fixed.pkl', "rb"))
-        print(data)
+        self.inverse_model.warmup()
 
 
