@@ -28,6 +28,8 @@ params:
   # env_name: 'visual_door_opener_multi_world'
   env_name: 'acrobot_continuous'
   algo_name: 'sac'
+  policy: 'MlpPolicy'
+  lr_inverse_model: 0.0003
 
 ---
 name: "sac_ex"
@@ -36,7 +38,9 @@ repetitions: 5   # repeat 8 times
 
 # Experiment Parameters
 params:
-  algo_name: 'sac'
+  env_name: 'acrobot_continuous'
+  algo_name: 'rlv'
+  policy: 'MlpPolicy'
 
 
 
