@@ -1,5 +1,6 @@
 import torch as T
 import os
+import pickle
 from RLV.torch_rlv.models.inverse_model_network import InverseModelNetwork
 from RLV.torch_rlv.algorithms.rlv.inversemodel import InverseModel
 from RLV.torch_rlv.algorithms.sac.sac import SAC
