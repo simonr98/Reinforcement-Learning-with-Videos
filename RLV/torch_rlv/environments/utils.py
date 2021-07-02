@@ -5,7 +5,6 @@ from multiworld.core.flat_goal_env import FlatGoalEnv
 
 
 def get_environment(name):
-    print(name)
     if name == "acrobot_continuous":
         multiworld.register_all_envs()
         return gym.make('AcrobotContinuous-v1')

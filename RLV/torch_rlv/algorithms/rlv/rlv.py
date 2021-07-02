@@ -1,14 +1,18 @@
 import torch as T
+import gym
 import os
 import pickle
 from RLV.torch_rlv.models.inverse_model_network import InverseModelNetwork
 from RLV.torch_rlv.algorithms.rlv.inversemodel import InverseModel
+from RLV.torch_rlv.buffer.buffers import DictReplayBuffer, ReplayBuffer
 from RLV.torch_rlv.algorithms.sac.sac import SAC
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.noise import ActionNoise
 from stable_baselines3.common.noise import NormalActionNoise
+from RLV.torch_rlv.human_data.adapter import Adapter
 from RLV.torch_rlv.algorithms.sac.softactorcritic import SoftActorCritic, SaveOnBestTrainingRewardCallback
 from RLV.torch_rlv.visualizer.plot import plot_learning_curve, plot_env_step, animate_env_obs
+from stable_baselines3.her.her_replay_buffer import HerReplayBuffer
 import numpy as np
 from datetime import datetime
 
@@ -40,13 +44,51 @@ class RLV(SAC):
         self.env_name = env_name
         self.env = Monitor(env, self.log_dir)
 
+        self.batch_size = batch_size
+
         self.n_actions = env.action_space.shape[-1]
         action_noise = NormalActionNoise(mean=np.zeros(self.n_actions), sigma=0.1 * np.ones(self.n_actions))
         self.callback = SaveOnBestTrainingRewardCallback(check_freq=1000, log_dir=self.log_dir)
 
+        self.action_free_replay_buffer = ReplayBuffer(
+            buffer_size=buffer_size, observation_space=env.observation_space,
+            action_space=env.action_space, device='cpu', n_envs=1,
+            optimize_memory_usage=optimize_memory_usage,
+            handle_timeout_termination=False)
+
         self.model = SoftActorCritic(policy='MlpPolicy', env_name=self.env_name, env=env, verbose=1, learning_starts=1000)
 
-    def run(self):
-        self.inverse_model.warmup()
+    def fill_action_free_buffer(self):
+        data = Adapter(data_type='unpaired', env_name='Acrobot')
 
+        observations = data.observations
+        next_observations = data.next_observations
+        actions = data.actions
+        rewards = data.rewards
+        terminals = data.terminals
+
+        for i in range(0, observations.shape[1]):
+            self.action_free_replay_buffer.add(
+                obs=observations[i],
+                next_obs=next_observations[i],
+                action=actions[i],
+                reward=rewards[i],
+                done=terminals[i],
+                infos={'': ''}
+            )
+
+
+    def run(self):
+        #self.inverse_model.warmup()
+        self.fill_action_free_buffer()
+        obs, target_action, next_obs, reward, done = self.action_free_replay_buffer.sample(batch_size=self.batch_size)
+
+        input_inverse_model = T.cat((obs, next_obs), dim=1)
+
+        predicted_action = self.inverse_model.network(input_inverse_model)
+
+        self.inverse_model.calculate_loss(predicted_action, target_action)
+        self.inverse_model.update()
+
+        pass
 
