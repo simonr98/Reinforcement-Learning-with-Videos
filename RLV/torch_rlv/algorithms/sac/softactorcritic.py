@@ -105,6 +105,7 @@ class SaveOnBestTrainingRewardCallback(BaseCallback):
         self.log_dir = log_dir
         self.save_path = os.path.join(log_dir, 'best_model')
         self.best_mean_reward = -np.inf
+        self.steps = 0
 
     def _init_callback(self) -> None:
         if self.save_path is not None:
@@ -116,8 +117,9 @@ class SaveOnBestTrainingRewardCallback(BaseCallback):
             x, y = ts2xy(load_results(self.log_dir), 'timesteps')
             if len(x) > 0:
                 mean_reward = np.mean(y[-100:])
+                self.steps += self.num_timesteps
                 if self.verbose > 0:
-                    print(f"Num timesteps: {self.num_timesteps}")
+                    print(f"Num timesteps: {self.steps}")
                     print(
                         f"Best mean reward: {self.best_mean_reward:.2f} - Last mean reward per episode: {mean_reward:.2f}")
 
@@ -129,7 +131,7 @@ class SaveOnBestTrainingRewardCallback(BaseCallback):
 
                     # initial logging parameters when SAC is used
                     logging_parameters = {
-                        "Num timesteps": self.num_timesteps,
+                        "Num timesteps": self.steps,
                         "Best mean reward": self.best_mean_reward,
                         "Last mean reward per episode": mean_reward}
 

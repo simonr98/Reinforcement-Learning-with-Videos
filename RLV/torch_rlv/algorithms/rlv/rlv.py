@@ -93,16 +93,16 @@ class RLV(SAC):
 
     def run(self):
         # warmup inverse model
-        # self.inverse_model.warmup()
+        self.inverse_model.warmup()
 
         # fill action free buffer
         self.fill_action_free_buffer()
 
-        # 1000 exploration steps - no gradient steps
-        self.model.model.gradient_steps = 0
-        self.model.run(total_timesteps=1000)
-
         for s in range(1, 2500):
+            # 1000 exploration steps - no gradient steps
+            self.model.model.gradient_steps = 0
+            self.model.run(total_timesteps=1000)
+
             state_obs, target_action, next_state_obs, _, done_obs \
                 = self.action_free_replay_buffer.sample(batch_size=self.batch_size)
 
@@ -128,8 +128,8 @@ class RLV(SAC):
             )
 
             self.model.rlv_data = combined_data
-            self.model.model.gradient_steps = 20
-            self.model.run(total_timesteps=0)
+            self.model.model.gradient_steps = 100
+            self.model.run(total_timesteps=1)
 
             self.inverse_model.calculate_loss(action_obs, target_action)
             self.inverse_model.update()
