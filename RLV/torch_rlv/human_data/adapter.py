@@ -16,7 +16,7 @@ class Adapter:
             self.terminals = self.data['terminals']
             self.actions = self.data['actions']
 
-        if env_name == 'Visual_pusher':
+        if env_name == 'Visual_Pusher':
             if data_type == 'unpaired':
                 self.data = pd.read_pickle(os.path.join(current_directory, 'Visual_Pusher/hand_july_21_26_keep_all_fixed.pkl'), 'gzip')
             else:

@@ -34,7 +34,7 @@ params:
 ---
 name: "sac_ex"
 path: "./output/sac/"
-repetitions: 5   # repeat 8 times
+repetitions: 1   # repeat 8 times
 
 # Experiment Parameters
 params:
