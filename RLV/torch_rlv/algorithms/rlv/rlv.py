@@ -17,21 +17,48 @@ import numpy as np
 from datetime import datetime
 
 
-class RLV(SAC):
+class RLV():
     def __init__(self, warmup_steps=1500, beta_inverse_model=0.0003, env_name='acrobot_continuous',
                  policy='MlpPolicy', env=None, learning_rate=0.0003, buffer_size=1000000, learning_starts=1000,
                  batch_size=256, tau=0.005, gamma=0.99, train_freq=1, gradient_steps=1, optimize_memory_usage=False,
                  ent_coef='auto', target_update_interval=1, target_entropy='auto', time_steps=0,
-                 initial_exploration_steps=1000):
-        super().__init__(policy, env, learning_rate, buffer_size, learning_starts,
-                         batch_size, tau, gamma, train_freq, gradient_steps, optimize_memory_usage,
-                         ent_coef, target_update_interval, target_entropy)
+                 initial_exploration_steps=1000, log_dir="/tmp/gym/", domain_shift=False,
+                 domain_shift_generator_weight=0.01, domain_shift_discriminator_weight=0.01, paired_loss_scale=1.0):
+
+        self.policy = policy
+        self.learning_rate = learning_rate
+        self.buffer_size = buffer_size
+        self.learnings_starts = learning_starts
+        self.batch_size = batch_size
+        self.tau = tau
+        self.gamma = gamma
+        self.train_freq = train_freq
+        self.gradient_steps = gradient_steps
         self.env_name = env_name
         self.warmup_steps = warmup_steps
         self.beta_inverse_model = beta_inverse_model
+        self.ent_coef = ent_coef
+        self.target_update_interval = target_update_interval
+        self.target_entropy = target_entropy
+
+        self.domain_shift = domain_shift
+        self.inverse_model_lr = 3e-4
+        self.domain_shift_discrim_lr = 3e-4
+        self.paired_loss_lr = 3e-4
+        self.paired_loss_scale = paired_loss_scale
+
+        self.domain_shift = domain_shift
+        self.domain_shift_generator_weight = domain_shift_generator_weight
+        self.domain_shift_discriminator_weight = domain_shift_discriminator_weight
+
+        self.log_dir = log_dir
 
         self.time_steps = time_steps
         self.initial_exploration_steps = initial_exploration_steps
+
+        self.env = env
+        self.env_name = env_name
+        self.env = Monitor(env, self.log_dir)
 
         if 'multi_world' in self.env_name:
             self.n_actions = env.action_space.shape[0]
@@ -43,12 +70,6 @@ class RLV(SAC):
                                           env=self.env, warmup_steps=self.warmup_steps)
         self.log_dir = "/tmp/gym/"
         os.makedirs(self.log_dir, exist_ok=True)
-
-        self.env = env
-        self.env_name = env_name
-        self.env = Monitor(env, self.log_dir)
-
-        self.batch_size = batch_size
 
         self.n_actions = env.action_space.shape[-1]
         action_noise = NormalActionNoise(mean=np.zeros(self.n_actions), sigma=0.1 * np.ones(self.n_actions))
@@ -91,18 +112,16 @@ class RLV(SAC):
         else:
             return -1
 
+
     def run(self):
         # warmup inverse model
-        self.inverse_model.warmup()
+        #self.inverse_model.warmup()
 
         # fill action free buffer
         self.fill_action_free_buffer()
+        self.model.run(total_timesteps=1)
 
         for s in range(1, 2500):
-            # 1000 exploration steps - no gradient steps
-            self.model.model.gradient_steps = 0
-            self.model.run(total_timesteps=1000)
-
             state_obs, target_action, next_state_obs, _, done_obs \
                 = self.action_free_replay_buffer.sample(batch_size=self.batch_size)
 
@@ -116,7 +135,7 @@ class RLV(SAC):
                 reward_obs[i] = self.set_reward(done=done_obs[i])
 
             # get robot data - sample from replay pool from the SAC model
-            data_int = self.model.model.replay_buffer.sample(self.batch_size, env=self._vec_normalize_env)
+            data_int = self.model.model.replay_buffer.sample(self.batch_size, env=self.model.model._vec_normalize_env)
 
             # replace the data used in SAC for each gradient steps by observational plus robot data
             combined_data = ReplayBufferSamples(
@@ -128,8 +147,10 @@ class RLV(SAC):
             )
 
             self.model.rlv_data = combined_data
-            self.model.model.gradient_steps = 100
-            self.model.run(total_timesteps=1)
+
+            # 1000 exploration steps - no gradient steps
+            self.model.model.gradient_steps = 1
+            self.model.run(total_timesteps=1000)
 
             self.inverse_model.calculate_loss(action_obs, target_action)
             self.inverse_model.update()

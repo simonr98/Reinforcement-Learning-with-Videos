@@ -5,10 +5,10 @@ import numpy as np
 import torch as th
 from torch.nn import functional as F
 
-from RLV.torch_rlv.buffer.buffers import ReplayBuffer
+from stable_baselines3.common.buffers import ReplayBuffer
 from stable_baselines3.common.noise import ActionNoise
-from stable_baselines3.common.off_policy_algorithm import OffPolicyAlgorithm
-from stable_baselines3.common.type_aliases import GymEnv, MaybeCallback, Schedule
+from RLV.torch_rlv.algorithms.sac.offpolicyalgorithm import OffPolicyAlgorithm
+from RLV.torch_rlv.buffer.type_aliases import GymEnv, MaybeCallback, Schedule
 from stable_baselines3.common.utils import polyak_update
 from stable_baselines3.sac.policies import SACPolicy
 
@@ -71,34 +71,35 @@ class SAC(OffPolicyAlgorithm):
     """
 
     def __init__(
-            self,
-            policy: Union[str, Type[SACPolicy]],
-            env: Union[GymEnv, str],
-            learning_rate: Union[float, Schedule] = 3e-4,
-            buffer_size: int = 1000000,  # 1e6
-            learning_starts: int = 1000,
-            batch_size: int = 256,
-            tau: float = 0.005,
-            gamma: float = 0.99,
-            train_freq: Union[int, Tuple[int, str]] = 1,
-            gradient_steps: int = 1,
-            action_noise: Optional[ActionNoise] = None,
-            optimize_memory_usage: bool = False,
-            ent_coef: Union[str, float] = "auto",
-            target_update_interval: int = 1,
-            target_entropy: Union[str, float] = "auto",
-            use_sde: bool = False,
-            sde_sample_freq: int = -1,
-            use_sde_at_warmup: bool = False,
-            tensorboard_log: Optional[str] = None,
-            create_eval_env: bool = False,
-            verbose: int = 0,
-            seed: Optional[int] = None,
-            device: Union[th.device, str] = "auto",
-            _init_setup_model: bool = True,
-            project_name='sac',
-            run_name='sac_run',
-            rlv_data=None
+        self,
+        policy: Union[str, Type[SACPolicy]],
+        env: Union[GymEnv, str],
+        learning_rate: Union[float, Schedule] = 3e-4,
+        buffer_size: int = 1000000,  # 1e6
+        learning_starts: int = 100,
+        batch_size: int = 256,
+        tau: float = 0.005,
+        gamma: float = 0.99,
+        train_freq: Union[int, Tuple[int, str]] = 1,
+        gradient_steps: int = 1,
+        action_noise: Optional[ActionNoise] = None,
+        replay_buffer_class: Optional[ReplayBuffer] = None,
+        replay_buffer_kwargs: Optional[Dict[str, Any]] = None,
+        optimize_memory_usage: bool = False,
+        ent_coef: Union[str, float] = "auto",
+        target_update_interval: int = 1,
+        target_entropy: Union[str, float] = "auto",
+        use_sde: bool = False,
+        sde_sample_freq: int = -1,
+        use_sde_at_warmup: bool = False,
+        tensorboard_log: Optional[str] = None,
+        create_eval_env: bool = False,
+        policy_kwargs: Dict[str, Any] = None,
+        verbose: int = 0,
+        seed: Optional[int] = None,
+        device: Union[th.device, str] = "auto",
+        _init_setup_model: bool = True,
+        rlv_data = None
     ):
 
         super(SAC, self).__init__(
@@ -114,6 +115,9 @@ class SAC(OffPolicyAlgorithm):
             train_freq,
             gradient_steps,
             action_noise,
+            replay_buffer_class=replay_buffer_class,
+            replay_buffer_kwargs=replay_buffer_kwargs,
+            policy_kwargs=policy_kwargs,
             tensorboard_log=tensorboard_log,
             verbose=verbose,
             device=device,
@@ -126,6 +130,7 @@ class SAC(OffPolicyAlgorithm):
             supported_action_spaces=(gym.spaces.Box),
         )
 
+        self.rlv_data = rlv_data
         self.target_entropy = target_entropy
         self.log_ent_coef = None  # type: Optional[th.Tensor]
         # Entropy coefficient / Entropy temperature
@@ -133,13 +138,6 @@ class SAC(OffPolicyAlgorithm):
         self.ent_coef = ent_coef
         self.target_update_interval = target_update_interval
         self.ent_coef_optimizer = None
-
-        self.project_name = project_name
-        self.run_name = run_name
-
-        self.replay_buffer = self.replay_buffer
-
-        self.rlv_data = rlv_data
 
         if _init_setup_model:
             self._setup_model()
@@ -195,10 +193,7 @@ class SAC(OffPolicyAlgorithm):
 
         for gradient_step in range(gradient_steps):
             # Sample replay buffer
-            if self.rlv_data is not None:
-                replay_data = self.rlv_data
-            else:
-                replay_data = self.replay_buffer.sample(batch_size, env=self._vec_normalize_env)
+            replay_data = self.replay_buffer.sample(batch_size, env=self._vec_normalize_env)
 
             # We need to sample because `log_std` may have changed between two gradient steps
             if self.use_sde:
@@ -271,17 +266,24 @@ class SAC(OffPolicyAlgorithm):
 
         self._n_updates += gradient_steps
 
+        self.logger.record("train/n_updates", self._n_updates, exclude="tensorboard")
+        self.logger.record("train/ent_coef", np.mean(ent_coefs))
+        self.logger.record("train/actor_loss", np.mean(actor_losses))
+        self.logger.record("train/critic_loss", np.mean(critic_losses))
+        if len(ent_coef_losses) > 0:
+            self.logger.record("train/ent_coef_loss", np.mean(ent_coef_losses))
+
     def learn(
-            self,
-            total_timesteps: int,
-            callback: MaybeCallback = None,
-            log_interval: int = 4,
-            eval_env: Optional[GymEnv] = None,
-            eval_freq: int = -1,
-            n_eval_episodes: int = 5,
-            tb_log_name: str = "SAC",
-            eval_log_path: Optional[str] = None,
-            reset_num_timesteps: bool = True,
+        self,
+        total_timesteps: int,
+        callback: MaybeCallback = None,
+        log_interval: int = 4,
+        eval_env: Optional[GymEnv] = None,
+        eval_freq: int = -1,
+        n_eval_episodes: int = 5,
+        tb_log_name: str = "SAC",
+        eval_log_path: Optional[str] = None,
+        reset_num_timesteps: bool = True,
     ) -> OffPolicyAlgorithm:
 
         return super(SAC, self).learn(

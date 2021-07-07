@@ -2,6 +2,7 @@ import gym
 import multiworld
 from RLV.torch_rlv.environments import custom_envs
 from multiworld.core.flat_goal_env import FlatGoalEnv
+import experiment_envs
 
 
 def get_environment(name):
@@ -13,6 +14,12 @@ def get_environment(name):
         base_env = gym.make('FetchPush-v1')
         multiworld.register_all_envs()
         return gym.wrappers.FlattenObservation(base_env)
+
+    if name == 'cart_pole':
+        return gym.make('CartPole-v1')
+
+    if name == 'pusher_2d':
+        return gym.make('Pusher2dEnv-v1')
 
     if name == "visual_pusher_multi_world":
         base_env = gym.make('SawyerReachXYZEnv-v1')
