@@ -15,14 +15,14 @@ slurm_log: "./slurmlog/"
 
 ---
 # DEFAULT parameters (Optional)
-name: "DEFAULT"   # MUST BE DEFAULT
-path: "./output/rlv"   # location to save results in
-repetitions: 3  # number of times one set of parameters is run
-reps_per_job: 1 # number of repetitions in each job. useful for paralellization. defaults to 1.
+name: "DEFAULT"   #  useful for paralellization. defaults to 1.
 reps_in_parallel: 8 # number of repetitions in each job that are executed in parallel. defaults to 1.
 
 params:
-  # this is where you specify all parameters needed for your experiment.
+  # this is where you specify all parameters needed for your experiment.MUST BE DEFAULT
+  #path: "./output/rlv"   # location to save results in
+  #repetitions: 3  # number of times one set of parameters is run
+  #reps_per_job: 1 # number of repetitions in each job.
   # the tree structure you define here will be translated to a nested python dictionary
   # env_name: 'visual_door_opener_multi_world'
   # env_name: 'visual_door_opener_multi_world'
@@ -30,6 +30,17 @@ params:
   algo_name: 'sac'
   policy: 'MlpPolicy'
   lr_inverse_model: 0.0003
+  wandb_log: False
+  lr_sac: 0.0003
+  buffer_size: 1000000
+  learning_starts: 1000
+  batch_size: 256
+  tau: 0.005
+  gamma: 0.99
+  train_freq: 1
+  gradient_steps: 1
+  project_name: 'sac_experiment'
+  run_name: 'test_sac'
 
 ---
 name: "sac_ex"
@@ -38,7 +49,7 @@ repetitions: 1   # repeat 8 times
 
 # Experiment Parameters
 params:
-  env_name: 'acrobot_continuous'
+  env_name: "acrobot_continuous"
   algo_name: 'rlv'
   policy: 'MlpPolicy'
 

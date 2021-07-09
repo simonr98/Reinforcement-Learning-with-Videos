@@ -17,11 +17,13 @@ class SoftActorCritic:
                  ent_coef='auto', target_update_interval=1, target_entropy='auto', use_sde=False, sde_sample_freq=- 1,
                  use_sde_at_warmup=False, tensorboard_log=None, create_eval_env=False, policy_kwargs=None, verbose=0,
                  seed=None, device='auto', _init_setup_model=True, project_name='sac_experiment', run_name='test_sac',
-                 rlv_data=None):
+                 rlv_data=None,  total_timesteps=0):
         self.log_dir = "/tmp/gym/"
         os.makedirs(self.log_dir, exist_ok=True)
 
         self.rlv_data = rlv_data
+
+        self.total_timesteps = total_timesteps
 
         self.config = config
 
@@ -58,7 +60,10 @@ class SoftActorCritic:
                                      settings=wandb.Settings(start_method="thread"))
 
     def run(self, total_timesteps=int(250000), plot=False):
+        callback = SaveOnBestTrainingRewardCallback(check_freq=500, log_dir=self.log_dir)
+        self.callback = callback
         self.model.learn(total_timesteps=total_timesteps, callback=self.callback)
+        self.total_timesteps =+ total_timesteps
 
         if plot:
             plot_results(self.log_dir)
@@ -98,7 +103,7 @@ class SoftActorCritic:
 
 
 class SaveOnBestTrainingRewardCallback(BaseCallback):
-    def __init__(self, check_freq: int, log_dir: str, verbose=1, wandb_log=False):
+    def __init__(self, check_freq: int, log_dir: str, verbose=1, wandb_log=False, total_timesteps=0):
         super(SaveOnBestTrainingRewardCallback, self).__init__(verbose)
         self.check_freq = check_freq
         self.wandb_log = wandb_log
@@ -106,6 +111,7 @@ class SaveOnBestTrainingRewardCallback(BaseCallback):
         self.save_path = os.path.join(log_dir, 'best_model')
         self.best_mean_reward = -np.inf
         self.steps = 0
+        self.total_timesteps = total_timesteps
 
     def _init_callback(self) -> None:
         if self.save_path is not None:
@@ -117,11 +123,10 @@ class SaveOnBestTrainingRewardCallback(BaseCallback):
             x, y = ts2xy(load_results(self.log_dir), 'timesteps')
             if len(x) > 0:
                 mean_reward = np.mean(y[-100:])
-                self.steps += self.num_timesteps
                 if self.verbose > 0:
-                    print(f"Num timesteps: {self.steps}")
-                    print(
-                        f"Best mean reward: {self.best_mean_reward:.2f} - Last mean reward per episode: {mean_reward:.2f}")
+                    print(f"Num timesteps: {self.num_timesteps}")
+                    print(f"Best mean reward: {self.best_mean_reward:.2f} - "
+                          f"Last mean reward per episode: {mean_reward:.2f}")
 
                 if mean_reward > self.best_mean_reward:
                     self.best_mean_reward = mean_reward

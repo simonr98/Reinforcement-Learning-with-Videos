@@ -112,10 +112,9 @@ class RLV():
         else:
             return -1
 
-
     def run(self):
         # warmup inverse model
-        #self.inverse_model.warmup()
+        self.inverse_model.warmup()
 
         # fill action free buffer
         self.fill_action_free_buffer()
@@ -146,11 +145,16 @@ class RLV():
                 rewards=T.cat((data_int.rewards, reward_obs), dim=0)
             )
 
-            self.model.rlv_data = combined_data
+            self.model.model.rlv_data = combined_data
 
-            # 1000 exploration steps - no gradient steps
+            # 1000 exploration steps - one gradient step
+            self.time_steps += 1000
             self.model.model.gradient_steps = 1
-            self.model.run(total_timesteps=1000)
+
+            callback = SaveOnBestTrainingRewardCallback(check_freq=500, log_dir=self.log_dir,
+                                                        total_timesteps=self.model.total_timesteps)
+            self.callback = callback
+            self.model.model.learn(total_timesteps=self.time_steps, callback=self.callback)
 
             self.inverse_model.calculate_loss(action_obs, target_action)
             self.inverse_model.update()

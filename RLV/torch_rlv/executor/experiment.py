@@ -22,6 +22,17 @@ class Experiment:
         self.algo_name = config['algo_name']
         self.policy = config['policy']
         self.lr_inverse_model = config['lr_inverse_model']
+        self.wandb_log = config['wandb_log']
+        self.lr_sac = config['lr_sac']
+        self.buffer_size = config['buffer_size']
+        self.learning_starts = config['learning_starts']
+        self.batch_size = config['batch_size']
+        self.tau = config['tau']
+        self.gamma = config['gamma']
+        self.train_freq = config['train_freq']
+        self.gradient_steps = config['gradient_steps']
+        self.project_name = config['project_name']
+        self.run_name = config['run_name']
 
     def run_experiment(self):
         log_dir = "/tmp/gym/"
@@ -34,6 +45,7 @@ class Experiment:
 
         # TODO: Hyperparameters: check_freq, log_dir, layer size etc
         algorithm = init_algorithm(self.algo_name, self)
+
         algorithm.run()
 
         self.env.close()

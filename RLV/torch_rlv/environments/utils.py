@@ -21,6 +21,9 @@ def get_environment(name):
     if name == 'pusher_2d':
         return gym.make('Pusher2dEnv-v1')
 
+    if name == 'Humanoid-v2':
+        return gym.make('Humanoid-v2')
+
     if name == "visual_pusher_multi_world":
         base_env = gym.make('SawyerReachXYZEnv-v1')
         multiworld.register_all_envs()
