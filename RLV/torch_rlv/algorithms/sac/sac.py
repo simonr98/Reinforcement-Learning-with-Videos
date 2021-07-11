@@ -99,7 +99,6 @@ class SAC(OffPolicyAlgorithm):
         seed: Optional[int] = None,
         device: Union[th.device, str] = "auto",
         _init_setup_model: bool = True,
-        rlv_data = None
     ):
 
         super(SAC, self).__init__(
@@ -130,7 +129,6 @@ class SAC(OffPolicyAlgorithm):
             supported_action_spaces=(gym.spaces.Box),
         )
 
-        self.rlv_data = rlv_data
         self.target_entropy = target_entropy
         self.log_ent_coef = None  # type: Optional[th.Tensor]
         # Entropy coefficient / Entropy temperature
@@ -193,10 +191,7 @@ class SAC(OffPolicyAlgorithm):
 
         for gradient_step in range(gradient_steps):
             # Sample replay buffer
-            if self.rlv_data is not None:
-                replay_data = self.rlv_data
-            else:
-                replay_data = self.replay_buffer.sample(batch_size, env=self._vec_normalize_env)
+            replay_data = self.replay_buffer.sample(batch_size, env=self._vec_normalize_env)
 
             # We need to sample because `log_std` may have changed between two gradient steps
             if self.use_sde:

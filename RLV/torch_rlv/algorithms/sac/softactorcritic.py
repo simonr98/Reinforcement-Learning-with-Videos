@@ -16,14 +16,9 @@ class SoftActorCritic:
                  batch_size=256, tau=0.005, gamma=0.99, train_freq=1, gradient_steps=1,  optimize_memory_usage=False,
                  ent_coef='auto', target_update_interval=1, target_entropy='auto', use_sde=False, sde_sample_freq=- 1,
                  use_sde_at_warmup=False, tensorboard_log=None, create_eval_env=False, policy_kwargs=None, verbose=0,
-                 seed=None, device='auto', _init_setup_model=True, project_name='sac_experiment', run_name='test_sac',
-                 rlv_data=None,  total_timesteps=0):
+                 seed=None, device='auto', _init_setup_model=True, project_name='sac_experiment', run_name='test_sac'):
         self.log_dir = "/tmp/gym/"
         os.makedirs(self.log_dir, exist_ok=True)
-
-        self.rlv_data = rlv_data
-
-        self.total_timesteps = total_timesteps
 
         self.config = config
 
@@ -50,8 +45,7 @@ class SoftActorCritic:
                          target_update_interval=target_update_interval, target_entropy=target_entropy, use_sde=use_sde,
                          sde_sample_freq=sde_sample_freq, use_sde_at_warmup=use_sde_at_warmup,
                          tensorboard_log=tensorboard_log, create_eval_env=create_eval_env,
-                         verbose=verbose, seed=seed, device=device, _init_setup_model=_init_setup_model,
-                         rlv_data=self.rlv_data)
+                         verbose=verbose, seed=seed, device=device, _init_setup_model=_init_setup_model)
         if wandb_log:
             self.logger = wandb.init(project=project_name,
                                      config=self.config,
@@ -103,15 +97,13 @@ class SoftActorCritic:
 
 
 class SaveOnBestTrainingRewardCallback(BaseCallback):
-    def __init__(self, check_freq: int, log_dir: str, verbose=1, wandb_log=False, total_timesteps=0):
+    def __init__(self, check_freq: int, log_dir: str, verbose=1, wandb_log=False):
         super(SaveOnBestTrainingRewardCallback, self).__init__(verbose)
         self.check_freq = check_freq
         self.wandb_log = wandb_log
         self.log_dir = log_dir
         self.save_path = os.path.join(log_dir, 'best_model')
         self.best_mean_reward = -np.inf
-        self.steps = 0
-        self.total_timesteps = total_timesteps
 
     def _init_callback(self) -> None:
         if self.save_path is not None:
@@ -136,7 +128,7 @@ class SaveOnBestTrainingRewardCallback(BaseCallback):
 
                     # initial logging parameters when SAC is used
                     logging_parameters = {
-                        "Num timesteps": self.steps,
+                        "Num timesteps": self.num_timesteps,
                         "Best mean reward": self.best_mean_reward,
                         "Last mean reward per episode": mean_reward}
 

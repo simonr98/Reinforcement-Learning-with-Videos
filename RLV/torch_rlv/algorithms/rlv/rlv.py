@@ -17,14 +17,16 @@ import numpy as np
 from datetime import datetime
 
 
-class RLV():
-    def __init__(self, warmup_steps=1500, beta_inverse_model=0.0003, env_name='acrobot_continuous',
-                 policy='MlpPolicy', env=None, learning_rate=0.0003, buffer_size=1000000, learning_starts=1000,
-                 batch_size=256, tau=0.005, gamma=0.99, train_freq=1, gradient_steps=1, optimize_memory_usage=False,
-                 ent_coef='auto', target_update_interval=1, target_entropy='auto', time_steps=0,
-                 initial_exploration_steps=1000, log_dir="/tmp/gym/", domain_shift=False,
-                 domain_shift_generator_weight=0.01, domain_shift_discriminator_weight=0.01, paired_loss_scale=1.0):
+class RLV(SAC):
+    def __init__(self, warmup_steps=1500, beta_inverse_model=0.0003, env_name='acrobot_continuous', policy='MlpPolicy',
+                 env=None, learning_rate=0.0003, buffer_size=1000000, learning_starts=1000, batch_size=256, tau=0.005,
+                 gamma=0.99, train_freq=1, gradient_steps=1, optimize_memory_usage=False, ent_coef='auto',
+                 target_update_interval=1, target_entropy='auto', time_steps=0, initial_exploration_steps=1000,
+                 log_dir="/tmp/gym/", domain_shift=False, domain_shift_generator_weight=0.01,
+                 domain_shift_discriminator_weight=0.01, paired_loss_scale=1.0):
 
+        super().__init__(policy, env, learning_rate, buffer_size, learning_starts, batch_size, tau, gamma, train_freq,
+                         gradient_steps, optimize_memory_usage, ent_coef, target_update_interval, target_entropy)
         self.policy = policy
         self.learning_rate = learning_rate
         self.buffer_size = buffer_size
@@ -40,6 +42,8 @@ class RLV():
         self.ent_coef = ent_coef
         self.target_update_interval = target_update_interval
         self.target_entropy = target_entropy
+
+        self.replay_buffer_class = replay_buffer_class
 
         self.domain_shift = domain_shift
         self.inverse_model_lr = 3e-4
@@ -80,10 +84,6 @@ class RLV():
             action_space=env.action_space, device='cpu', n_envs=1,
             optimize_memory_usage=optimize_memory_usage, handle_timeout_termination=False)
 
-        self.model = SoftActorCritic(policy='MlpPolicy', env_name=self.env_name, env=env, verbose=1,
-                                     learning_starts=1000, wandb_log=False, project_name='rlv_exper',
-                                     gradient_steps=1)
-
     def fill_action_free_buffer(self):
         data = Adapter(data_type='unpaired', env_name='Acrobot')
 
@@ -112,15 +112,19 @@ class RLV():
         else:
             return -1
 
-    def run(self):
-        # warmup inverse model
-        self.inverse_model.warmup()
+    def train(self, gradient_steps: int, batch_size: int = 64) -> None:
+        # Update optimizers learning rate
+        optimizers = [self.actor.optimizer, self.critic.optimizer]
+        if self.ent_coef_optimizer is not None:
+            optimizers += [self.ent_coef_optimizer]
 
-        # fill action free buffer
-        self.fill_action_free_buffer()
-        self.model.run(total_timesteps=1)
+        # Update learning rate according to lr schedule
+        self._update_learning_rate(optimizers)
 
-        for s in range(1, 2500):
+        ent_coef_losses, ent_coefs = [], []
+        actor_losses, critic_losses = [], []
+
+        for gradient_step in range(gradient_steps):
             state_obs, target_action, next_state_obs, _, done_obs \
                 = self.action_free_replay_buffer.sample(batch_size=self.batch_size)
 
@@ -134,10 +138,10 @@ class RLV():
                 reward_obs[i] = self.set_reward(done=done_obs[i])
 
             # get robot data - sample from replay pool from the SAC model
-            data_int = self.model.model.replay_buffer.sample(self.batch_size, env=self.model.model._vec_normalize_env)
+            data_int = self.model.model.replay_buffer.sample(self.batch_size, env=self._vec_normalize_env)
 
             # replace the data used in SAC for each gradient steps by observational plus robot data
-            combined_data = ReplayBufferSamples(
+            replay_data = ReplayBufferSamples(
                 observations=T.cat((data_int.observations, state_obs), dim=0),
                 actions=T.cat((data_int.actions, action_obs), dim=0),
                 next_observations=T.cat((data_int.next_observations, next_state_obs), dim=0),
@@ -145,18 +149,84 @@ class RLV():
                 rewards=T.cat((data_int.rewards, reward_obs), dim=0)
             )
 
-            self.model.model.rlv_data = combined_data
+            # We need to sample because `log_std` may have changed between two gradient steps
+            if self.use_sde:
+                self.actor.reset_noise()
 
-            # 1000 exploration steps - one gradient step
-            self.time_steps += 1000
-            self.model.model.gradient_steps = 1
+            # Action by the current actor for the sampled state
+            actions_pi, log_prob = self.actor.action_log_prob(replay_data.observations)
+            log_prob = log_prob.reshape(-1, 1)
 
-            callback = SaveOnBestTrainingRewardCallback(check_freq=500, log_dir=self.log_dir,
-                                                        total_timesteps=self.model.total_timesteps)
-            self.callback = callback
-            self.model.model.learn(total_timesteps=self.time_steps, callback=self.callback)
+            ent_coef_loss = None
+            if self.ent_coef_optimizer is not None:
+                # Important: detach the variable from the graph
+                # so we don't change it with other losses
+                # see https://github.com/rail-berkeley/softlearning/issues/60
+                ent_coef = th.exp(self.log_ent_coef.detach())
+                ent_coef_loss = -(self.log_ent_coef * (log_prob + self.target_entropy).detach()).mean()
+                ent_coef_losses.append(ent_coef_loss.item())
+            else:
+                ent_coef = self.ent_coef_tensor
 
-            self.inverse_model.calculate_loss(action_obs, target_action)
-            self.inverse_model.update()
+            ent_coefs.append(ent_coef.item())
 
-        print('Run successfull')
+            # Optimize entropy coefficient, also called
+            # entropy temperature or alpha in the paper
+            if ent_coef_loss is not None:
+                self.ent_coef_optimizer.zero_grad()
+                ent_coef_loss.backward(retain_graph=True)
+                self.ent_coef_optimizer.step()
+
+            with th.no_grad():
+                # Select action according to policy
+                next_actions, next_log_prob = self.actor.action_log_prob(replay_data.next_observations)
+                # Compute the next Q values: min over all critics targets
+                next_q_values = th.cat(self.critic_target(replay_data.next_observations, next_actions), dim=1)
+                next_q_values, _ = th.min(next_q_values, dim=1, keepdim=True)
+                # add entropy term
+                next_q_values = next_q_values - ent_coef * next_log_prob.reshape(-1, 1)
+                # td error + entropy term
+                target_q_values = replay_data.rewards + (1 - replay_data.dones) * self.gamma * next_q_values
+
+            # Get current Q-values estimates for each critic network
+            # using action from the replay buffer
+            current_q_values = self.critic(replay_data.observations, replay_data.actions)
+
+            # Compute critic loss
+            critic_loss = 0.5 * sum([F.mse_loss(current_q, target_q_values) for current_q in current_q_values])
+            critic_losses.append(critic_loss.item())
+
+            # Optimize the critic
+            self.critic.optimizer.zero_grad()
+            critic_loss.backward(retain_graph=True)
+            self.critic.optimizer.step()
+
+            # Compute actor loss
+            # Alternative: actor_loss = th.mean(log_prob - qf1_pi)
+            # Mean over all critic networks
+            q_values_pi = th.cat(self.critic.forward(replay_data.observations, actions_pi), dim=1)
+            min_qf_pi, _ = th.min(q_values_pi, dim=1, keepdim=True)
+            actor_loss = (ent_coef * log_prob - min_qf_pi).mean()
+            actor_losses.append(actor_loss.item())
+
+            # Optimize the actor
+            self.actor.optimizer.zero_grad()
+            actor_loss.backward(retain_graph=True)
+            self.actor.optimizer.step()
+
+            # Update target networks
+            if gradient_step % self.target_update_interval == 0:
+                polyak_update(self.critic.parameters(), self.critic_target.parameters(), self.tau)
+
+        self._n_updates += gradient_steps
+
+        self.logger.record("train/n_updates", self._n_updates, exclude="tensorboard")
+        self.logger.record("train/ent_coef", np.mean(ent_coefs))
+        self.logger.record("train/actor_loss", np.mean(actor_losses))
+        self.logger.record("train/critic_loss", np.mean(critic_losses))
+        if len(ent_coef_losses) > 0:
+            self.logger.record("train/ent_coef_loss", np.mean(ent_coef_losses))
+
+        self.inverse_model.calculate_loss(action_obs, target_action)
+        self.inverse_model.update()
+
