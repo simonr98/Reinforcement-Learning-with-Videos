@@ -208,7 +208,6 @@ class OffPolicyAlgorithm(BaseAlgorithm):
             )
 
         if self.replay_buffer is None:
-            print(self.replay_buffer_kwargs)
             self.replay_buffer = self.replay_buffer_class(
                 self.buffer_size,
                 self.observation_space,

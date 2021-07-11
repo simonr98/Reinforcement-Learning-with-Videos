@@ -49,8 +49,8 @@ repetitions: 1   # repeat 8 times
 
 # Experiment Parameters
 params:
-  env_name: "acrobot_continuous"
-  algo_name: 'rlv'
+  env_name: "visual_pusher_gym"
+  algo_name: 'sac'
   policy: 'MlpPolicy'
 
 

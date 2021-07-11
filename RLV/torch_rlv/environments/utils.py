@@ -3,6 +3,7 @@ import multiworld
 from RLV.torch_rlv.environments import custom_envs
 from multiworld.core.flat_goal_env import FlatGoalEnv
 import experiment_envs
+from stable_baselines3.common.env_util import make_vec_env
 
 
 def get_environment(name):
