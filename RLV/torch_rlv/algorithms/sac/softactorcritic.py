@@ -35,6 +35,8 @@ class SoftActorCritic:
         else:
             self.n_actions = env.action_space.shape[-1]
 
+        self.total_timesteps = 0
+
         action_noise = NormalActionNoise(mean=np.zeros(self.n_actions), sigma=0.1 * np.ones(self.n_actions))
         self.callback = SaveOnBestTrainingRewardCallback(check_freq=1000, log_dir=self.log_dir)
 

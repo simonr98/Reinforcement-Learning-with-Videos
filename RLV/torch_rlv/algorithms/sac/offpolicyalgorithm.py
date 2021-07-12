@@ -8,7 +8,7 @@ import gym
 import numpy as np
 import torch as th
 
-from stable_baselines3.common.base_class import BaseAlgorithm
+from RLV.torch_rlv.algorithms.sac.base_class import BaseAlgorithm
 from RLV.torch_rlv.buffer.buffers import DictReplayBuffer, ReplayBuffer
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.noise import ActionNoise
