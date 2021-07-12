@@ -28,7 +28,7 @@ class RLV(SAC):
                  env=None, learning_rate=0.0003, buffer_size=1000000, learning_starts=1000, batch_size=256, tau=0.005,
                  gamma=0.99, train_freq=1, gradient_steps=1, optimize_memory_usage=False, ent_coef='auto',
                  target_update_interval=1, target_entropy='auto', initial_exploration_steps=1000,
-                 log_dir="/tmp/gym/", domain_shift=False, domain_shift_generator_weight=0.01,
+                 domain_shift=False, domain_shift_generator_weight=0.01,
                  domain_shift_discriminator_weight=0.01, paired_loss_scale=1.0, action_noise: Optional[ActionNoise] = None,
                  replay_buffer_class: Optional[ReplayBuffer] = None,
                  replay_buffer_kwargs: Optional[Dict[str, Any]] = None,
@@ -53,6 +53,7 @@ class RLV(SAC):
             tau=tau,
             gamma=gamma,
             train_freq=train_freq,
+            target_entropy=target_entropy,
             gradient_steps=gradient_steps,
             action_noise=action_noise,
             replay_buffer_class=replay_buffer_class,
@@ -69,21 +70,8 @@ class RLV(SAC):
             optimize_memory_usage=optimize_memory_usage,
         )
 
-        self.policy = policy
-        self.learning_rate = learning_rate
-        self.buffer_size = buffer_size
-        self.learnings_starts = learning_starts
-        self.batch_size = batch_size
-        self.tau = tau
-        self.gamma = gamma
-        self.train_freq = train_freq
-        self.gradient_steps = gradient_steps
-        self.env_name = env_name
         self.warmup_steps = warmup_steps
         self.beta_inverse_model = beta_inverse_model
-        self.ent_coef = ent_coef
-        self.target_update_interval = target_update_interval
-        self.target_entropy = target_entropy
 
         self.domain_shift = domain_shift
         self.inverse_model_lr = 3e-4
@@ -97,9 +85,6 @@ class RLV(SAC):
 
         self.initial_exploration_steps = initial_exploration_steps
 
-        self.log_dir = log_dir
-
-        self.env = env
         self.env_name = env_name
 
         if 'multi_world' in self.env_name:
@@ -110,12 +95,6 @@ class RLV(SAC):
         self.inverse_model = InverseModel(observation_space_dims=env.observation_space.shape[-1],
                                           action_space_dims=self.n_actions,
                                           env=self.env, warmup_steps=self.warmup_steps)
-
-        os.makedirs(self.log_dir, exist_ok=True)
-
-        self.n_actions = env.action_space.shape[-1]
-        self.action_noise = action_noise
-        self.callback = SaveOnBestTrainingRewardCallback(check_freq=1000, log_dir=self.log_dir)
 
         self.action_free_replay_buffer = ReplayBuffer(
             buffer_size=buffer_size, observation_space=env.observation_space,

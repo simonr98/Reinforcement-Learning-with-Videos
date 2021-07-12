@@ -190,7 +190,6 @@ class BaseAlgorithm(ABC):
         if not isinstance(env, VecEnv):
             if not is_wrapped(env, Monitor) and monitor_wrapper:
                 if verbose >= 1:
-                    print('yes')
                     print("Wrapping the env with a `Monitor` wrapper")
                 env = Monitor(env)
             if verbose >= 1:
@@ -749,5 +748,7 @@ class BaseAlgorithm(ABC):
 
         # Build dict of state_dicts
         params_to_save = self.get_parameters()
+
+        print(data)
 
         save_to_zip_file(path, data=data, params=params_to_save, pytorch_variables=pytorch_variables)

@@ -38,9 +38,8 @@ class SoftActorCritic:
         self.total_timesteps = 0
 
         action_noise = NormalActionNoise(mean=np.zeros(self.n_actions), sigma=0.1 * np.ones(self.n_actions))
-        self.callback = SaveOnBestTrainingRewardCallback(check_freq=1000, log_dir=self.log_dir)
 
-        self.model = SAC(policy, self.env, learning_rate=learning_rate, buffer_size=buffer_size,
+        self.model = SAC(policy, env, learning_rate=learning_rate, buffer_size=buffer_size,
                          learning_starts=learning_starts, batch_size=batch_size, tau=tau, gamma=gamma,
                          train_freq=train_freq, gradient_steps=gradient_steps, action_noise=action_noise,
                          optimize_memory_usage=optimize_memory_usage, ent_coef=ent_coef,
@@ -57,8 +56,7 @@ class SoftActorCritic:
 
     def run(self, total_timesteps=int(250000), plot=False):
         callback = SaveOnBestTrainingRewardCallback(check_freq=500, log_dir=self.log_dir)
-        self.callback = callback
-        self.model.learn(total_timesteps=total_timesteps, callback=self.callback)
+        self.model.learn(total_timesteps=total_timesteps, callback=callback)
         self.total_timesteps =+ total_timesteps
 
         if plot:
