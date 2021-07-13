@@ -48,8 +48,6 @@ class InverseModel:
 
             target_action_t = T.from_numpy(target_action).float()
 
-            self.network.optimizer.zero_grad()
-
             self.loss = self.calculate_loss(obs_action_t, target_action_t)
 
             if s % 50 == 0:
@@ -63,5 +61,6 @@ class InverseModel:
         return self.loss
 
     def update(self):
+        self.network.optimizer.zero_grad()
         self.loss.backward()
         self.network.optimizer.step()

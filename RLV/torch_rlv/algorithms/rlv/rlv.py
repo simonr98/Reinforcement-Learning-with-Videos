@@ -70,7 +70,7 @@ class RLV(SAC):
             use_sde_at_warmup=use_sde_at_warmup,
             optimize_memory_usage=optimize_memory_usage,
         )
-
+        self.inverse_model_loss = 0
         self.warmup_steps = warmup_steps
         self.beta_inverse_model = beta_inverse_model
 
@@ -264,9 +264,9 @@ class RLV(SAC):
             if gradient_step % self.target_update_interval == 0:
                 polyak_update(self.critic.parameters(), self.critic_target.parameters(), self.tau)
 
-            # Update Inverse Model
-            self.inverse_model.calculate_loss(action_obs, target_action)
-            self.inverse_model.update()
+                # Update Inverse Model
+                self.inverse_model_loss = self.inverse_model.calculate_loss(action_obs, target_action)
+                self.inverse_model.update()
 
         self._n_updates += gradient_steps
 
