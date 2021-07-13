@@ -31,7 +31,7 @@ class RlWithVideos(SoftActorCritic):
 
         action_noise = NormalActionNoise(mean=np.zeros(self.n_actions), sigma=0.1 * np.ones(self.n_actions))
 
-        self.model = RLV(warmup_steps=1, beta_inverse_model=0.0003, env_name=env_name, policy=policy,
+        self.model = RLV(warmup_steps=500, beta_inverse_model=0.0003, env_name=env_name, policy=policy,
                          env=self.env, learning_rate=learning_rate, buffer_size=buffer_size,
                          learning_starts=learning_starts, batch_size=batch_size, tau=tau, gamma=gamma,
                          train_freq=train_freq, gradient_steps=gradient_steps, action_noise=action_noise,

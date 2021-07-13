@@ -21,6 +21,7 @@ from RLV.torch_rlv.human_data.adapter import Adapter
 from RLV.torch_rlv.algorithms.sac.softactorcritic import SoftActorCritic, SaveOnBestTrainingRewardCallback
 from RLV.torch_rlv.visualizer.plot import plot_learning_curve, plot_env_step, animate_env_obs
 from datetime import datetime
+from stable_baselines3.common.utils import polyak_update
 
 
 class RLV(SAC):
@@ -38,7 +39,7 @@ class RLV(SAC):
                  tensorboard_log: Optional[str] = None,
                  create_eval_env: bool = False,
                  policy_kwargs: Dict[str, Any] = None,
-                 verbose: int = 1,
+                 verbose: int = 0,
                  seed: Optional[int] = None,
                  device: Union[th.device, str] = "auto",
                  _init_setup_model: bool = True,
@@ -158,7 +159,6 @@ class RLV(SAC):
         )
 
     def train(self, gradient_steps: int, batch_size: int = 64) -> None:
-        print('überschreibe')
         # Update optimizers learning rate
         optimizers = [self.actor.optimizer, self.critic.optimizer]
         if self.ent_coef_optimizer is not None:
@@ -175,24 +175,24 @@ class RLV(SAC):
                 = self.action_free_replay_buffer.sample(batch_size=self.batch_size)
 
             # get predicted action from inverse model
-            input_inverse_model = T.cat((state_obs, next_state_obs), dim=1)
+            input_inverse_model = th.cat((state_obs, next_state_obs), dim=1)
             action_obs = self.inverse_model.network(input_inverse_model)
 
             # set rewards for observational data
-            reward_obs = T.zeros(self.batch_size, 1)
+            reward_obs = th.zeros(self.batch_size, 1)
             for i in range(0, self.batch_size):
                 reward_obs[i] = self.set_reward(done=done_obs[i])
 
             # get robot data - sample from replay pool from the SAC model
-            data_int = self.model.model.replay_buffer.sample(self.batch_size, env=self._vec_normalize_env)
+            data_int = self.replay_buffer.sample(self.batch_size, env=self._vec_normalize_env)
 
             # replace the data used in SAC for each gradient steps by observational plus robot data
             replay_data = ReplayBufferSamples(
-                observations=T.cat((data_int.observations, state_obs), dim=0),
-                actions=T.cat((data_int.actions, action_obs), dim=0),
-                next_observations=T.cat((data_int.next_observations, next_state_obs), dim=0),
-                dones=T.cat((data_int.dones, done_obs), dim=0),
-                rewards=T.cat((data_int.rewards, reward_obs), dim=0)
+                observations=th.cat((data_int.observations, state_obs), dim=0),
+                actions=th.cat((data_int.actions, action_obs), dim=0),
+                next_observations=th.cat((data_int.next_observations, next_state_obs), dim=0),
+                dones=th.cat((data_int.dones, done_obs), dim=0),
+                rewards=th.cat((data_int.rewards, reward_obs), dim=0)
             )
 
             # We need to sample because `log_std` may have changed between two gradient steps
