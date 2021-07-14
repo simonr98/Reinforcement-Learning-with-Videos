@@ -45,7 +45,7 @@ class RlWithVideos(SoftActorCritic):
                          _init_setup_model=_init_setup_model)
 
         if wandb_log:
-            self.logger = wandb.init(project=project_name,
+            self.wandb_logger = wandb.init(project=project_name,
                                      config=self.config,
                                      name=run_name,
                                      reinit=True,  # allow things to be run multiple times
@@ -55,8 +55,8 @@ class RlWithVideos(SoftActorCritic):
         self.model.fill_action_free_buffer()
         self.model.inverse_model.warmup()
 
-        callback = SaveOnBestTrainingRewardCallback(check_freq=1000, log_dir=self.log_dir)
-        self.model.learn(total_timesteps=total_timesteps, callback=callback)
+        callback = SaveOnBestTrainingRewardCallback(check_freq=500, log_dir=self.log_dir)
+        self.model.learn(total_timesteps=total_timesteps, callback=callback, log_interval=4)
         self.total_timesteps =+ total_timesteps
 
         if plot:

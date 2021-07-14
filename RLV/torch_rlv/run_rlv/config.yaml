@@ -43,8 +43,8 @@ params:
   run_name: 'test_sac'
 
 ---
-name: "sac_ex"
-path: "./output/sac/"
+name: "rlv_ex"
+path: "./output/rlv/"
 repetitions: 1   # repeat 8 times
 
 # Experiment Parameters

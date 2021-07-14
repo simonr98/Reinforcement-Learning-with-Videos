@@ -48,7 +48,7 @@ class SoftActorCritic:
                          tensorboard_log=tensorboard_log, create_eval_env=create_eval_env,
                          verbose=verbose, seed=seed, device=device, _init_setup_model=_init_setup_model)
         if wandb_log:
-            self.logger = wandb.init(project=project_name,
+            self.wandb_logger = wandb.init(project=project_name,
                                      config=self.config,
                                      name=run_name,
                                      reinit=True,  # allow things to be run multiple times
