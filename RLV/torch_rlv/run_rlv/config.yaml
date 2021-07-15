@@ -41,6 +41,7 @@ params:
   gradient_steps: 1
   project_name: 'sac_experiment'
   run_name: 'test_sac'
+  log_dir: '/tmp/gym/'
 
 #---
 #name: "sac_ex"
@@ -57,7 +58,7 @@ params:
 ---
 name: "rlv_ex"
 path: "./output/rlv/"
-repetitions: 5   # repeat 8 times
+repetitions: 1   # repeat 8 times
 
 # Experiment Parameters
 params:

@@ -16,8 +16,10 @@ class SoftActorCritic:
                  batch_size=256, tau=0.005, gamma=0.99, train_freq=1, gradient_steps=1,  optimize_memory_usage=False,
                  ent_coef='auto', target_update_interval=1, target_entropy='auto', use_sde=False, sde_sample_freq=- 1,
                  use_sde_at_warmup=False, tensorboard_log=None, create_eval_env=False, policy_kwargs=None, verbose=0,
-                 seed=None, device='auto', _init_setup_model=True, project_name='sac_experiment', run_name='test_sac'):
-        self.log_dir = "/tmp/gym/"
+                 seed=None, device='auto', _init_setup_model=True, project_name='sac_experiment', run_name='test_sac',
+                 log_dir='/tmp/gym/'):
+
+        self.log_dir = log_dir
         os.makedirs(self.log_dir, exist_ok=True)
 
         self.wandb_log = wandb_log
@@ -54,7 +56,7 @@ class SoftActorCritic:
                                            settings=wandb.Settings(start_method="thread"))
 
     def run(self, total_timesteps=int(250000), plot=False):
-        callback = SaveOnBestTrainingRewardCallback(check_freq=500, log_dir=self.log_dir, wandb_log=self.wandb_log)
+        callback = SaveOnBestTrainingRewardCallback(check_freq=1000, log_dir=self.log_dir, wandb_log=self.wandb_log)
         self.model.learn(total_timesteps=total_timesteps, callback=callback)
         self.total_timesteps =+ total_timesteps
 

@@ -18,7 +18,7 @@ class Experiment:
     def __init__(self, config):
         self.config = config
         self.env_name = config['env_name']
-        self.env = None
+        self.env = get_environment(self.env_name)
         self.algo_name = config['algo_name']
         self.policy = config['policy']
         self.lr_inverse_model = config['lr_inverse_model']
@@ -33,22 +33,11 @@ class Experiment:
         self.gradient_steps = config['gradient_steps']
         self.project_name = config['project_name']
         self.run_name = config['run_name']
+        self.log_dir = config['log_dir']
 
     def run_experiment(self):
-        log_dir = "/tmp/gym/"
-        os.makedirs(log_dir, exist_ok=True)
-
-        multiworld.register_all_envs()
-
-        self.env = get_environment(self.env_name)
-        #env = Monitor(env, log_dir)
-
-        # TODO: Hyperparameters: check_freq, log_dir, layer size etc
         algorithm = init_algorithm(self.algo_name, self)
-
         algorithm.run()
 
-        self.env.close()
+        env.close()
 
-        if self.algo_name == 'sac':
-            plot_results(log_dir)
