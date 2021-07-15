@@ -50,8 +50,9 @@ class InverseModel:
 
             self.loss = self.calculate_loss(obs_action_t, target_action_t)
 
+            print("Inverse Model Warmup")
             if s % 50 == 0:
-                print(f"Warmup Step: {s} - Loss Inverse Model: {self.loss}")
+                print(f"Step: {s} --- Loss: {self.loss}")
 
             # Update Inverse Model
             self.update()

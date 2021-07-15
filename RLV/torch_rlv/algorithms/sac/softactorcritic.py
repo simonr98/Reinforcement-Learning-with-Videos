@@ -20,6 +20,8 @@ class SoftActorCritic:
         self.log_dir = "/tmp/gym/"
         os.makedirs(self.log_dir, exist_ok=True)
 
+        self.wandb_log = wandb_log
+
         self.config = config
 
         self.env = env
@@ -48,14 +50,11 @@ class SoftActorCritic:
                          tensorboard_log=tensorboard_log, create_eval_env=create_eval_env,
                          verbose=verbose, seed=seed, device=device, _init_setup_model=_init_setup_model)
         if wandb_log:
-            self.wandb_logger = wandb.init(project=project_name,
-                                     config=self.config,
-                                     name=run_name,
-                                     reinit=True,  # allow things to be run multiple times
-                                     settings=wandb.Settings(start_method="thread"))
+            self.wandb_logger = wandb.init(project=project_name, config=self.config, name=run_name, reinit=True,
+                                           settings=wandb.Settings(start_method="thread"))
 
     def run(self, total_timesteps=int(250000), plot=False):
-        callback = SaveOnBestTrainingRewardCallback(check_freq=500, log_dir=self.log_dir)
+        callback = SaveOnBestTrainingRewardCallback(check_freq=500, log_dir=self.log_dir, wandb_log=self.wandb_log)
         self.model.learn(total_timesteps=total_timesteps, callback=callback)
         self.total_timesteps =+ total_timesteps
 
@@ -97,13 +96,14 @@ class SoftActorCritic:
 
 
 class SaveOnBestTrainingRewardCallback(BaseCallback):
-    def __init__(self, check_freq: int, log_dir: str, verbose=1, wandb_log=False):
+    def __init__(self, check_freq: int, log_dir: str, verbose=1, wandb_log=False, pre_training=False):
         super(SaveOnBestTrainingRewardCallback, self).__init__(verbose)
         self.check_freq = check_freq
         self.wandb_log = wandb_log
         self.log_dir = log_dir
         self.save_path = os.path.join(log_dir, 'best_model')
         self.best_mean_reward = -np.inf
+        self.pre_training = pre_training
 
     def _init_callback(self) -> None:
         if self.save_path is not None:
@@ -116,14 +116,16 @@ class SaveOnBestTrainingRewardCallback(BaseCallback):
             if len(x) > 0:
                 mean_reward = np.mean(y[-100:])
                 if self.verbose > 0:
-                    print(f"Num timesteps: {self.num_timesteps}")
-                    print(f"Best mean reward: {self.best_mean_reward:.2f} - "
-                          f"Last mean reward per episode: {mean_reward:.2f}")
+                    if not self.pre_training:
+                        print(f"Num timesteps: {self.num_timesteps}")
+                        print(f"Best mean reward: {self.best_mean_reward:.2f} - "
+                              f"Last mean reward per episode: {mean_reward:.2f}")
 
                 if mean_reward > self.best_mean_reward:
                     self.best_mean_reward = mean_reward
                     if self.verbose > 0:
-                        print(f"Saving new best model to {self.save_path}.zip")
+                        if not self.pre_training:
+                            print(f"Saving new best model to {self.save_path}.zip")
                     self.model.save(self.save_path)
 
                     # initial logging parameters when SAC is used

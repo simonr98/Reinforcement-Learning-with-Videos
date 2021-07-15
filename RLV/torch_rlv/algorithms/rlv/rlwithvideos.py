@@ -21,7 +21,8 @@ class RlWithVideos(SoftActorCritic):
                  gradient_steps=1, optimize_memory_usage=False, ent_coef='auto', target_update_interval=1,
                  target_entropy='auto', use_sde=False, sde_sample_freq=- 1, use_sde_at_warmup=False,
                  tensorboard_log=None, create_eval_env=False, policy_kwargs=None, verbose=0, seed=None, device='auto',
-                 _init_setup_model=True, project_name='sac_experiment', run_name='test_sac'):
+                 _init_setup_model=True, project_name='sac_experiment', run_name='test_sac',
+                 pre_training_sac_steps=25000, human_data=False):
 
         super().__init__(policy, env_name, config, wandb_log, env, learning_rate, buffer_size, learning_starts,
                          batch_size, tau, gamma, train_freq, gradient_steps, optimize_memory_usage, ent_coef,
@@ -30,6 +31,17 @@ class RlWithVideos(SoftActorCritic):
                          project_name, run_name)
 
         action_noise = NormalActionNoise(mean=np.zeros(self.n_actions), sigma=0.1 * np.ones(self.n_actions))
+        self.pre_training_sac_steps = pre_training_sac_steps
+        self.human_data = human_data
+
+        self.sac = SAC(policy, env, learning_rate=learning_rate, buffer_size=buffer_size,
+                       learning_starts=learning_starts, batch_size=batch_size, tau=tau, gamma=gamma,
+                       train_freq=train_freq, gradient_steps=gradient_steps, action_noise=action_noise,
+                       optimize_memory_usage=optimize_memory_usage, ent_coef=ent_coef,
+                       target_update_interval=target_update_interval, target_entropy=target_entropy, use_sde=use_sde,
+                       sde_sample_freq=sde_sample_freq, use_sde_at_warmup=use_sde_at_warmup,
+                       tensorboard_log=tensorboard_log, create_eval_env=create_eval_env,
+                       verbose=verbose, seed=seed, device=device, _init_setup_model=_init_setup_model)
 
         self.model = RLV(warmup_steps=500, beta_inverse_model=0.0003, env_name=env_name, policy=policy,
                          env=self.env, learning_rate=learning_rate, buffer_size=buffer_size,
@@ -42,20 +54,26 @@ class RlWithVideos(SoftActorCritic):
                          domain_shift_generator_weight=0.01, domain_shift_discriminator_weight=0.01,
                          create_eval_env=create_eval_env, tensorboard_log=tensorboard_log,
                          paired_loss_scale=1.0, verbose=verbose, seed=seed, device=device,
-                         _init_setup_model=_init_setup_model)
+                         _init_setup_model=_init_setup_model, wandb_log=wandb_log)
 
         if wandb_log:
             self.wandb_logger = wandb.init(project=project_name,
-                                     config=self.config,
-                                     name=run_name,
-                                     reinit=True,  # allow things to be run multiple times
-                                     settings=wandb.Settings(start_method="thread"))
+                                           config=self.config,
+                                           name=run_name,
+                                           reinit=True,  # allow things to be run multiple times
+                                           settings=wandb.Settings(start_method="thread"))
 
     def run(self, total_timesteps=int(250000), plot=False):
-        self.model.fill_action_free_buffer()
+        print('Training Sac to fill action free replay buffer')
+        if not self.human_data:
+            sac_callback = SaveOnBestTrainingRewardCallback(check_freq=1500, log_dir=self.log_dir)
+            self.sac.learn(total_timesteps=self.pre_training_sac_steps, callback=sac_callback, log_interval=8)
+            self.model.fill_action_free_buffer(human_data=False, sac=self.sac)
+        else:
+            self.model.fill_action_free_buffer(human_data=True)
         self.model.inverse_model.warmup()
 
-        callback = SaveOnBestTrainingRewardCallback(check_freq=500, log_dir=self.log_dir)
+        callback = SaveOnBestTrainingRewardCallback(check_freq=500, log_dir=self.log_dir, wandb_log=self.wandb_log)
         self.model.learn(total_timesteps=total_timesteps, callback=callback, log_interval=4)
         self.total_timesteps =+ total_timesteps
 

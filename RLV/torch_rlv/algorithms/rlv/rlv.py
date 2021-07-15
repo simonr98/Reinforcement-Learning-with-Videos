@@ -9,6 +9,7 @@ from torch.nn import functional as F
 
 from RLV.torch_rlv.buffer.type_aliases import GymEnv, MaybeCallback, Schedule
 
+import wandb
 import pickle
 from RLV.torch_rlv.models.inverse_model_network import InverseModelNetwork
 from RLV.torch_rlv.algorithms.rlv.inversemodel import InverseModel
@@ -28,7 +29,7 @@ class RLV(SAC):
     def __init__(self, warmup_steps=1500, beta_inverse_model=0.0003, env_name='acrobot_continuous', policy='MlpPolicy',
                  env=None, learning_rate=0.0003, buffer_size=1000000, learning_starts=1000, batch_size=256, tau=0.005,
                  gamma=0.99, train_freq=1, gradient_steps=1, optimize_memory_usage=False, ent_coef='auto',
-                 target_update_interval=1, target_entropy='auto', initial_exploration_steps=1000,
+                 target_update_interval=1, target_entropy='auto', initial_exploration_steps=1000, wandb_log=False,
                  domain_shift=False, domain_shift_generator_weight=0.01,
                  domain_shift_discriminator_weight=0.01, paired_loss_scale=1.0, action_noise: Optional[ActionNoise] = None,
                  replay_buffer_class: Optional[ReplayBuffer] = None,
@@ -70,6 +71,8 @@ class RLV(SAC):
             use_sde_at_warmup=use_sde_at_warmup,
             optimize_memory_usage=optimize_memory_usage,
         )
+
+        self.wandb_log = wandb_log
         self.inverse_model_loss = 0
         self.warmup_steps = warmup_steps
         self.beta_inverse_model = beta_inverse_model
@@ -105,24 +108,30 @@ class RLV(SAC):
     def _setup_model(self) -> None:
         super(RLV, self)._setup_model()
 
-    def fill_action_free_buffer(self):
-        data = Adapter(data_type='unpaired', env_name='Acrobot')
+    def fill_action_free_buffer(self, human_data=False, num_steps=200000, sac=None):
+        if human_data:
+            data = Adapter(data_type='unpaired', env_name='Acrobot')
+            observations = data.observations
+            next_observations = data.next_observations
+            actions = data.actions
+            rewards = data.rewards
+            terminals = data.terminals
 
-        observations = data.observations
-        next_observations = data.next_observations
-        actions = data.actions
-        rewards = data.rewards
-        terminals = data.terminals
-
-        for i in range(0, observations.shape[1]):
-            self.action_free_replay_buffer.add(
-                obs=observations[i],
-                next_obs=next_observations[i],
-                action=actions[i],
-                reward=rewards[i],
-                done=terminals[i],
-                infos={'': ''}
-            )
+            for i in range(0, observations.shape[1]):
+                self.action_free_replay_buffer.add(
+                    obs=observations[i],
+                    next_obs=next_observations[i],
+                    action=actions[i],
+                    reward=rewards[i],
+                    done=terminals[i],
+                    infos={'': ''}
+                )
+        else:
+            if sac is not None:
+                print('Training done')
+                self.action_free_replay_buffer = sac.replay_buffer
+            else:
+                print('Sac object is None')
 
     def set_reward(self, done=False):
         if self.env_name == 'acrobot_continuous':
@@ -160,6 +169,7 @@ class RLV(SAC):
 
     def train(self, gradient_steps: int, batch_size: int = 64) -> None:
         # Update optimizers learning rate
+        global logging_parameters
         optimizers = [self.actor.optimizer, self.critic.optimizer]
         if self.ent_coef_optimizer is not None:
             optimizers += [self.ent_coef_optimizer]
@@ -270,10 +280,22 @@ class RLV(SAC):
 
         self._n_updates += gradient_steps
 
+        if self.wandb_log:
+            logging_parameters = {
+                "train/n_updates": self._n_updates,
+                "train/ent_coef": np.mean(ent_coefs),
+                "train/actor_loss": np.mean(actor_losses),
+                "train/critic_loss": np.mean(critic_losses),
+            }
+
         self.logger.record("train/n_updates", self._n_updates, exclude="tensorboard")
         self.logger.record("train/ent_coef", np.mean(ent_coefs))
         self.logger.record("train/actor_loss", np.mean(actor_losses))
         self.logger.record("train/critic_loss", np.mean(critic_losses))
         if len(ent_coef_losses) > 0:
             self.logger.record("train/ent_coef_loss", np.mean(ent_coef_losses))
+            if self.wandb_log:
+                logging_parameters["train/ent_coef_loss"] = np.mean(ent_coef_losses)
 
+        if self.wandb_log:
+            wandb.log(logging_parameters)
