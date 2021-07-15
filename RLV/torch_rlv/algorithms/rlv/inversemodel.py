@@ -32,6 +32,8 @@ class InverseModel:
 
         obs[0] = self.env.reset()
 
+        print("Inverse Model Warmup")
+
         for s in range(0, self.warmup_steps):
             for c in range(0, self.batch_size-1):
                 target_action[c] = self.env.action_space.sample()
@@ -50,7 +52,6 @@ class InverseModel:
 
             self.loss = self.calculate_loss(obs_action_t, target_action_t)
 
-            print("Inverse Model Warmup")
             if s % 50 == 0:
                 print(f"Step: {s} --- Loss: {self.loss}")
 
