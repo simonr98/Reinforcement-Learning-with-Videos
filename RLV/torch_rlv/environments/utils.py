@@ -9,7 +9,7 @@ from stable_baselines3.common.env_util import make_vec_env
 def get_environment(name):
     if name == "acrobot_continuous":
         multiworld.register_all_envs()
-        return gym.make('AcrobotContinuous-v1')
+        return gym.make('AcrobotContinuous100-v1')
 
     if name == "visual_pusher_gym":
         base_env = gym.make('FetchPush-v1')

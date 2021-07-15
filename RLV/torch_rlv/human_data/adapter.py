@@ -9,7 +9,7 @@ class Adapter:
         current_directory = os.path.dirname(__file__)
 
         if env_name == 'Acrobot':
-            self.data = pd.read_pickle(os.path.join(current_directory, 'Acrobot/acrobot-25-50.pkl'), 'gzip')
+            self.data = pd.read_pickle(os.path.join(current_directory, 'Acrobot/acrobot-975-1000.pkl'), 'gzip')
             self.observations = self.data['observations']
             self.next_observations = self.data['next_observations']
             self.rewards = self.data['rewards']

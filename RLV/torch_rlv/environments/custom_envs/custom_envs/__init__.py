@@ -6,3 +6,9 @@ register(
         entry_point='custom_envs.envs.acrobot_continuous:AcrobotContinuousEnv',
         max_episode_steps=500,
     )
+
+register(
+        id='AcrobotContinuous100-v1',
+        entry_point='custom_envs.envs.acrobot_continuous:AcrobotContinuousEnv',
+        max_episode_steps=100,
+    )

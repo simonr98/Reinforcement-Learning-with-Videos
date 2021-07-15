@@ -74,6 +74,7 @@ class RLV(SAC):
 
         self.wandb_log = wandb_log
         self.inverse_model_loss = 0
+        self.loss = 0
         self.warmup_steps = warmup_steps
         self.beta_inverse_model = beta_inverse_model
 
@@ -133,9 +134,9 @@ class RLV(SAC):
             else:
                 print('Sac object is None')
 
-    def set_reward(self, done=False):
+    def set_reward(self, reward_obs):
         if self.env_name == 'acrobot_continuous':
-            if done:
+            if reward_obs > -1:
                 return 10
             else:
                 return -1
@@ -191,7 +192,7 @@ class RLV(SAC):
             # set rewards for observational data
             reward_obs = th.zeros(self.batch_size, 1)
             for i in range(0, self.batch_size):
-                reward_obs[i] = self.set_reward(done=done_obs[i])
+                reward_obs[i] = self.set_reward(reward_obs=reward_obs[i])
 
             # get robot data - sample from replay pool from the SAC model
             data_int = self.replay_buffer.sample(self.batch_size, env=self._vec_normalize_env)
@@ -246,6 +247,7 @@ class RLV(SAC):
 
             # Get current Q-values estimates for each critic network
             # using action from the replay buffer
+            print(replay_data.observations.shape)
             current_q_values = self.critic(replay_data.observations, replay_data.actions)
 
             # Compute critic loss
@@ -270,13 +272,13 @@ class RLV(SAC):
             actor_loss.backward(retain_graph=True)
             self.actor.optimizer.step()
 
+            self.inverse_model_loss = self.inverse_model.calculate_loss(action_obs, target_action)
+            self.loss = actor_loss + critic_loss + self.inverse_model_loss
+            self.inverse_model.update()
+
             # Update target networks
             if gradient_step % self.target_update_interval == 0:
                 polyak_update(self.critic.parameters(), self.critic_target.parameters(), self.tau)
-
-                # Update Inverse Model
-                self.inverse_model_loss = self.inverse_model.calculate_loss(action_obs, target_action)
-                self.inverse_model.update()
 
         self._n_updates += gradient_steps
 
