@@ -247,7 +247,6 @@ class RLV(SAC):
 
             # Get current Q-values estimates for each critic network
             # using action from the replay buffer
-            print(replay_data.observations.shape)
             current_q_values = self.critic(replay_data.observations, replay_data.actions)
 
             # Compute critic loss
