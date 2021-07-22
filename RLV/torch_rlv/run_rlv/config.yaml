@@ -29,7 +29,7 @@ params:
   env_name: 'acrobot_continuous'
   algo_name: 'sac'
   policy: 'MlpPolicy'
-  lr_inverse_model: 0.0003
+  lr_inverse_model: 0.0002
   wandb_log: False
   lr_sac: 0.0003
   buffer_size: 1000000

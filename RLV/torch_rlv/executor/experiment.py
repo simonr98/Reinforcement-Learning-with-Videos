@@ -39,5 +39,3 @@ class Experiment:
         algorithm = init_algorithm(self.algo_name, self)
         algorithm.run()
 
-        env.close()
-

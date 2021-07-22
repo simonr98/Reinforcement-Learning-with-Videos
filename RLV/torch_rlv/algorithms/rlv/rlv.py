@@ -11,6 +11,7 @@ from RLV.torch_rlv.buffer.type_aliases import GymEnv, MaybeCallback, Schedule
 
 import wandb
 import pickle
+import torch.optim as optim
 from RLV.torch_rlv.models.inverse_model_network import InverseModelNetwork
 from RLV.torch_rlv.algorithms.rlv.inversemodel import InverseModel
 from RLV.torch_rlv.buffer.buffers import DictReplayBuffer, ReplayBuffer
@@ -31,7 +32,8 @@ class RLV(SAC):
                  gamma=0.99, train_freq=1, gradient_steps=1, optimize_memory_usage=False, ent_coef='auto',
                  target_update_interval=1, target_entropy='auto', initial_exploration_steps=1000, wandb_log=False,
                  domain_shift=False, domain_shift_generator_weight=0.01,
-                 domain_shift_discriminator_weight=0.01, paired_loss_scale=1.0, action_noise: Optional[ActionNoise] = None,
+                 domain_shift_discriminator_weight=0.01, paired_loss_scale=1.0,
+                 action_noise: Optional[ActionNoise] = None,
                  replay_buffer_class: Optional[ReplayBuffer] = None,
                  replay_buffer_kwargs: Optional[Dict[str, Any]] = None,
                  use_sde: bool = False,
@@ -79,7 +81,6 @@ class RLV(SAC):
         self.beta_inverse_model = beta_inverse_model
 
         self.domain_shift = domain_shift
-        self.inverse_model_lr = 3e-4
         self.domain_shift_discrim_lr = 3e-4
         self.paired_loss_lr = 3e-4
         self.paired_loss_scale = paired_loss_scale
@@ -98,6 +99,7 @@ class RLV(SAC):
             self.n_actions = env.action_space.shape[-1]
 
         self.inverse_model = InverseModel(observation_space_dims=env.observation_space.shape[-1],
+                                          beta=beta_inverse_model,
                                           action_space_dims=self.n_actions,
                                           env=self.env, warmup_steps=self.warmup_steps)
 
@@ -105,9 +107,7 @@ class RLV(SAC):
             buffer_size=buffer_size, observation_space=env.observation_space,
             action_space=env.action_space, device='cpu', n_envs=1,
             optimize_memory_usage=optimize_memory_usage, handle_timeout_termination=False)
-
-    def _setup_model(self) -> None:
-        super(RLV, self)._setup_model()
+        self.training_ops = {}
 
     def fill_action_free_buffer(self, human_data=False, num_steps=200000, sac=None):
         if human_data:
@@ -143,31 +143,6 @@ class RLV(SAC):
         else:
             return -1
 
-    def learn(
-        self,
-        total_timesteps: int,
-        callback: MaybeCallback = None,
-        log_interval: int = 4,
-        eval_env: Optional[GymEnv] = None,
-        eval_freq: int = -1,
-        n_eval_episodes: int = 5,
-        tb_log_name: str = "SAC",
-        eval_log_path: Optional[str] = None,
-        reset_num_timesteps: bool = True,
-    ) -> SAC:
-
-        return super(RLV, self).learn(
-            total_timesteps=total_timesteps,
-            callback=callback,
-            log_interval=log_interval,
-            eval_env=eval_env,
-            eval_freq=eval_freq,
-            n_eval_episodes=n_eval_episodes,
-            tb_log_name=tb_log_name,
-            eval_log_path=eval_log_path,
-            reset_num_timesteps=reset_num_timesteps,
-        )
-
     def train(self, gradient_steps: int, batch_size: int = 64) -> None:
         # Update optimizers learning rate
         global logging_parameters
@@ -185,9 +160,14 @@ class RLV(SAC):
             state_obs, target_action, next_state_obs, _, done_obs \
                 = self.action_free_replay_buffer.sample(batch_size=self.batch_size)
 
+            if target_action[0] > 0:
+                print(target_action)
+
             # get predicted action from inverse model
             input_inverse_model = th.cat((state_obs, next_state_obs), dim=1)
             action_obs = self.inverse_model.network(input_inverse_model)
+
+            self.training_ops.update({'action_obs': action_obs})
 
             # set rewards for observational data
             reward_obs = th.zeros(self.batch_size, 1)
@@ -249,14 +229,13 @@ class RLV(SAC):
             # using action from the replay buffer
             current_q_values = self.critic(replay_data.observations, replay_data.actions)
 
+            loss = th.zeros(1)
+
             # Compute critic loss
             critic_loss = 0.5 * sum([F.mse_loss(current_q, target_q_values) for current_q in current_q_values])
             critic_losses.append(critic_loss.item())
-
-            # Optimize the critic
-            self.critic.optimizer.zero_grad()
-            critic_loss.backward(retain_graph=True)
-            self.critic.optimizer.step()
+            self.training_ops.update({'critic_loss': critic_loss})
+            loss += abs(critic_loss)
 
             # Compute actor loss
             # Alternative: actor_loss = th.mean(log_prob - qf1_pi)
@@ -265,15 +244,25 @@ class RLV(SAC):
             min_qf_pi, _ = th.min(q_values_pi, dim=1, keepdim=True)
             actor_loss = (ent_coef * log_prob - min_qf_pi).mean()
             actor_losses.append(actor_loss.item())
+            self.training_ops.update({'actor_loss': actor_loss})
+            loss += abs(actor_loss)
 
-            # Optimize the actor
-            self.actor.optimizer.zero_grad()
-            actor_loss.backward(retain_graph=True)
-            self.actor.optimizer.step()
-
+            # Compute inverse model loss
             self.inverse_model_loss = self.inverse_model.calculate_loss(action_obs, target_action)
-            self.loss = actor_loss + critic_loss + self.inverse_model_loss
-            self.inverse_model.update()
+            self.training_ops.update({'inverse_model_loss': self.inverse_model_loss})
+            loss += abs(self.inverse_model_loss)
+            self.training_ops.update({'total_loss': loss})
+
+            # Joint optimization
+            params = list(self.inverse_model.network.parameters()) + list(self.actor.parameters()) \
+                     + list(self.critic.parameters())
+            optimizer = optim.Adam(params, lr=0.0001)
+
+            optimizer.zero_grad()
+
+            loss.backward()
+
+            optimizer.step()
 
             # Update target networks
             if gradient_step % self.target_update_interval == 0:
@@ -293,6 +282,8 @@ class RLV(SAC):
         self.logger.record("train/ent_coef", np.mean(ent_coefs))
         self.logger.record("train/actor_loss", np.mean(actor_losses))
         self.logger.record("train/critic_loss", np.mean(critic_losses))
+        #self.logger.record("train/inverse_model_loss", self.inverse_model_loss)
+
         if len(ent_coef_losses) > 0:
             self.logger.record("train/ent_coef_loss", np.mean(ent_coef_losses))
             if self.wandb_log:

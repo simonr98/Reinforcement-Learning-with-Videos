@@ -17,9 +17,10 @@ from RLV.torch_rlv.algorithms.sac.softactorcritic import SoftActorCritic
 
 class RlWithVideos(SoftActorCritic):
     def __init__(self, policy='MlpPolicy', env_name=None, config=None, wandb_log=False, env=None, learning_rate=0.0003,
-                 buffer_size=1000000, learning_starts=1000, batch_size=256, tau=0.005, gamma=0.99, train_freq=1,
-                 gradient_steps=1, optimize_memory_usage=False, ent_coef='auto', target_update_interval=1,
-                 target_entropy='auto', use_sde=False, sde_sample_freq=- 1, use_sde_at_warmup=False,
+                 learning_rate_inverse_model=0.0003, buffer_size=1000000, learning_starts=1000, batch_size=256,
+                 tau=0.005, gamma=0.99, train_freq=1, gradient_steps=1, optimize_memory_usage=False, ent_coef='auto',
+                 target_update_interval=1, target_entropy='auto', use_sde=False,
+                 sde_sample_freq=- 1, use_sde_at_warmup=False,
                  tensorboard_log=None, create_eval_env=False, policy_kwargs=None, verbose=0, seed=None, device='auto',
                  _init_setup_model=True, project_name='sac_experiment', run_name='test_sac',
                  pre_training_sac_steps=25000, human_data=False, log_dir=None):
@@ -44,8 +45,8 @@ class RlWithVideos(SoftActorCritic):
                        tensorboard_log=tensorboard_log, create_eval_env=create_eval_env,
                        verbose=verbose, seed=seed, device=device, _init_setup_model=_init_setup_model)
 
-        self.model = RLV(warmup_steps=500, beta_inverse_model=0.0003, env_name=env_name, policy=policy,
-                         env=self.env, learning_rate=learning_rate, buffer_size=buffer_size,
+        self.model = RLV(warmup_steps=500, beta_inverse_model=learning_rate_inverse_model, env_name=env_name,
+                         policy=policy, env=self.env, learning_rate=learning_rate, buffer_size=buffer_size,
                          learning_starts=learning_starts, batch_size=batch_size, tau=tau, gamma=gamma,
                          train_freq=train_freq, gradient_steps=gradient_steps, action_noise=action_noise,
                          optimize_memory_usage=optimize_memory_usage, ent_coef=ent_coef,
@@ -65,14 +66,14 @@ class RlWithVideos(SoftActorCritic):
                                            settings=wandb.Settings(start_method="thread"))
 
     def run(self, total_timesteps=int(250000), plot=False):
-        if not self.human_data:
+        if self.human_data:
+            print('Data in Replay Pool of the paper is used to fill the action free buffer')
+            self.model.fill_action_free_buffer(human_data=True)
+        else:
             print('Training Sac to fill action free replay buffer')
             sac_callback = SaveOnBestTrainingRewardCallback(check_freq=1500, log_dir=self.log_dir)
             self.sac.learn(total_timesteps=self.pre_training_sac_steps, callback=sac_callback, log_interval=8)
             self.model.fill_action_free_buffer(human_data=False, sac=self.sac)
-        else:
-            print('Data in Replay Pool of the paper is used to fill the action free buffer')
-            self.model.fill_action_free_buffer(human_data=True)
 
         self.model.inverse_model.warmup()
 
