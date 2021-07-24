@@ -118,7 +118,7 @@ class RLV(SAC):
             rewards = data.rewards
             terminals = data.terminals
 
-            for i in range(0, observations.shape[1]):
+            for i in range(0, observations.shape[0]):
                 self.action_free_replay_buffer.add(
                     obs=observations[i],
                     next_obs=next_observations[i],
@@ -146,12 +146,12 @@ class RLV(SAC):
     def train(self, gradient_steps: int, batch_size: int = 64) -> None:
         # Update optimizers learning rate
         global logging_parameters
-        optimizers = [self.actor.optimizer, self.critic.optimizer]
-        if self.ent_coef_optimizer is not None:
-            optimizers += [self.ent_coef_optimizer]
+        # optimizers = [self.actor.optimizer, self.critic.optimizer]
+        # if self.ent_coef_optimizer is not None:
+        #     optimizers += [self.ent_coef_optimizer]
 
         # Update learning rate according to lr schedule
-        self._update_learning_rate(optimizers)
+        #self._update_learning_rate(optimizers)
 
         ent_coef_losses, ent_coefs = [], []
         actor_losses, critic_losses = [], []
@@ -159,9 +159,6 @@ class RLV(SAC):
         for gradient_step in range(gradient_steps):
             state_obs, target_action, next_state_obs, _, done_obs \
                 = self.action_free_replay_buffer.sample(batch_size=self.batch_size)
-
-            if target_action[0] > 0:
-                print(target_action)
 
             # get predicted action from inverse model
             input_inverse_model = th.cat((state_obs, next_state_obs), dim=1)
@@ -282,7 +279,7 @@ class RLV(SAC):
         self.logger.record("train/ent_coef", np.mean(ent_coefs))
         self.logger.record("train/actor_loss", np.mean(actor_losses))
         self.logger.record("train/critic_loss", np.mean(critic_losses))
-        #self.logger.record("train/inverse_model_loss", self.inverse_model_loss)
+        self.logger.record("train/inverse_model_loss", self.inverse_model_loss.item())
 
         if len(ent_coef_losses) > 0:
             self.logger.record("train/ent_coef_loss", np.mean(ent_coef_losses))
