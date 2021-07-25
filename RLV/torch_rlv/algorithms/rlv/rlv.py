@@ -226,13 +226,10 @@ class RLV(SAC):
             # using action from the replay buffer
             current_q_values = self.critic(replay_data.observations, replay_data.actions)
 
-            loss = th.zeros(1)
-
             # Compute critic loss
             critic_loss = 0.5 * sum([F.mse_loss(current_q, target_q_values) for current_q in current_q_values])
             critic_losses.append(critic_loss.item())
             self.training_ops.update({'critic_loss': critic_loss})
-            loss += abs(critic_loss)
 
             # Compute actor loss
             # Alternative: actor_loss = th.mean(log_prob - qf1_pi)
@@ -242,24 +239,25 @@ class RLV(SAC):
             actor_loss = (ent_coef * log_prob - min_qf_pi).mean()
             actor_losses.append(actor_loss.item())
             self.training_ops.update({'actor_loss': actor_loss})
-            loss += abs(actor_loss)
 
             # Compute inverse model loss
             self.inverse_model_loss = self.inverse_model.calculate_loss(action_obs, target_action)
             self.training_ops.update({'inverse_model_loss': self.inverse_model_loss})
-            loss += abs(self.inverse_model_loss)
-            self.training_ops.update({'total_loss': loss})
 
             # Joint optimization
-            params = list(self.inverse_model.network.parameters()) + list(self.actor.parameters()) \
-                     + list(self.critic.parameters())
-            optimizer = optim.Adam(params, lr=0.0001)
+            self.actor.optimizer.zero_grad()
+            self.critic.optimizer.zero_grad()
+            self.inverse_model.network.optimizer.zero_grad()
 
-            optimizer.zero_grad()
+            loss = (abs(critic_loss) + abs(actor_loss) + self.inverse_model_loss)
+            self.loss = loss
+            self.training_ops.update({'total_loss': loss})
 
             loss.backward()
 
-            optimizer.step()
+            self.actor.optimizer.step()
+            self.critic.optimizer.step()
+            self.inverse_model.network.optimizer.step()
 
             # Update target networks
             if gradient_step % self.target_update_interval == 0:
@@ -280,6 +278,7 @@ class RLV(SAC):
         self.logger.record("train/actor_loss", np.mean(actor_losses))
         self.logger.record("train/critic_loss", np.mean(critic_losses))
         self.logger.record("train/inverse_model_loss", self.inverse_model_loss.item())
+        self.logger.record("train/total_loss", self.loss.item())
 
         if len(ent_coef_losses) > 0:
             self.logger.record("train/ent_coef_loss", np.mean(ent_coef_losses))

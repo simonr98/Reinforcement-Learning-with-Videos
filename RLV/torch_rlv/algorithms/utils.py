@@ -19,5 +19,7 @@ def init_algorithm(alg_name, experiment):
                             learning_starts=experiment.learning_starts, batch_size=experiment.batch_size,
                             gamma=experiment.gamma, tau=experiment.tau, train_freq=experiment.train_freq,
                             gradient_steps=experiment.gradient_steps, project_name=experiment.project_name,
-                            run_name=experiment.run_name, human_data=True, verbose=1, log_dir=experiment.log_dir)
+                            run_name=experiment.run_name, human_data=experiment.human_data, verbose=1,
+                            log_dir=experiment.log_dir,
+                            train_sac_action_free_steps=experiment.train_sac_action_free_steps)
 

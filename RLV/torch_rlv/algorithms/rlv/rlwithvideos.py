@@ -23,7 +23,7 @@ class RlWithVideos(SoftActorCritic):
                  sde_sample_freq=- 1, use_sde_at_warmup=False,
                  tensorboard_log=None, create_eval_env=False, policy_kwargs=None, verbose=0, seed=None, device='auto',
                  _init_setup_model=True, project_name='sac_experiment', run_name='test_sac',
-                 pre_training_sac_steps=25000, human_data=False, log_dir=None):
+                 train_sac_action_free_steps=25000, human_data=False, log_dir=None):
 
         super().__init__(policy, env_name, config, wandb_log, env, learning_rate, buffer_size, learning_starts,
                          batch_size, tau, gamma, train_freq, gradient_steps, optimize_memory_usage, ent_coef,
@@ -32,7 +32,7 @@ class RlWithVideos(SoftActorCritic):
                          project_name, run_name)
 
         action_noise = NormalActionNoise(mean=np.zeros(self.n_actions), sigma=0.1 * np.ones(self.n_actions))
-        self.pre_training_sac_steps = pre_training_sac_steps
+        self.train_sac_action_free_steps = train_sac_action_free_steps
         self.human_data = human_data
         self.log_dir = log_dir
 
@@ -72,7 +72,7 @@ class RlWithVideos(SoftActorCritic):
         else:
             print('Training Sac to fill action free replay buffer')
             sac_callback = SaveOnBestTrainingRewardCallback(check_freq=1500, log_dir=self.log_dir)
-            self.sac.learn(total_timesteps=self.pre_training_sac_steps, callback=sac_callback, log_interval=8)
+            self.sac.learn(total_timesteps=self.train_sac_action_free_steps, callback=sac_callback, log_interval=8)
             self.model.fill_action_free_buffer(human_data=False, sac=self.sac)
 
         self.model.inverse_model.warmup()

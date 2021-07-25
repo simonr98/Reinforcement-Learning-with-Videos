@@ -302,6 +302,8 @@ class BaseAlgorithm(ABC):
             "env",
             "eval_env",
             "replay_buffer",
+            "action_free_replay_buffer"
+            "inverse_model"
             "rollout_buffer",
             "_vec_normalize_env",
             "_episode_storage",
@@ -733,8 +735,7 @@ class BaseAlgorithm(ABC):
             var_name = torch_var.split(".")[0]
             # Any params that are in the save vars must not be saved by data
             exclude.add(var_name)
-            exclude.add('inverse_model')
-            exclude.add('action_free_replay_buffer')
+            exclude.add("inverse_model")
 
         # Remove parameter entries of parameters which are to be excluded
         for param_name in exclude:
@@ -750,5 +751,4 @@ class BaseAlgorithm(ABC):
 
         # Build dict of state_dicts
         params_to_save = self.get_parameters()
-
         save_to_zip_file(path, data=data, params=params_to_save, pytorch_variables=pytorch_variables)
