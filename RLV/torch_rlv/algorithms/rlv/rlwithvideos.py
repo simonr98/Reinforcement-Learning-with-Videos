@@ -46,7 +46,7 @@ class RlWithVideos(SoftActorCritic):
                        tensorboard_log=tensorboard_log, create_eval_env=create_eval_env,
                        verbose=verbose, seed=seed, device=device, _init_setup_model=_init_setup_model)
 
-        self.model = RLV(warmup_steps=0, beta_inverse_model=learning_rate_inverse_model, env_name=env_name,
+        self.model = RLV(warmup_steps=500, beta_inverse_model=learning_rate_inverse_model, env_name=env_name,
                          policy=policy, env=self.env, learning_rate=learning_rate, buffer_size=buffer_size,
                          learning_starts=learning_starts, batch_size=batch_size, tau=tau, gamma=gamma,
                          train_freq=train_freq, gradient_steps=gradient_steps, action_noise=action_noise,
@@ -82,6 +82,7 @@ class RlWithVideos(SoftActorCritic):
                                                    human_data=False, sac=None)
 
         callback = SaveOnBestTrainingRewardCallback(check_freq=1000, log_dir=self.log_dir, wandb_log=self.wandb_log)
+        self.model.warmup_inverse_model()
         self.model.learn(total_timesteps=total_timesteps, callback=callback, log_interval=4)
         self.total_timesteps =+ total_timesteps
 

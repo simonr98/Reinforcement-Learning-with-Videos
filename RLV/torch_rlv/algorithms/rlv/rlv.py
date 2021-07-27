@@ -13,7 +13,6 @@ import wandb
 import pickle
 import torch.optim as optim
 from RLV.torch_rlv.models.inverse_model_network import InverseModelNetwork
-from RLV.torch_rlv.algorithms.rlv.inversemodel import InverseModel
 from RLV.torch_rlv.buffer.buffers import DictReplayBuffer, ReplayBuffer
 from RLV.torch_rlv.algorithms.sac.sac import SAC
 from stable_baselines3.common.noise import ActionNoise
@@ -99,12 +98,10 @@ class RLV(SAC):
         else:
             self.n_actions = env.action_space.shape[-1]
 
-        self.inverse_model = InverseModel(observation_space_dims=env.observation_space.shape[-1],
-                                          beta=beta_inverse_model,
-                                          action_space_dims=self.n_actions,
-                                          env=self.env, warmup_steps=self.warmup_steps)
-        self.inverse_model.warmup()
-        self.inverse_model.network.beta=0.0001
+        self.inverse_model = InverseModelNetwork(beta=beta_inverse_model,
+                                                 input_dims=env.observation_space.shape[-1] * 2,
+                                                 output_dims=env.action_space.shape[-1],
+                                                 fc1_dims=64, fc2_dims=64, fc3_dims=64)
 
         self.action_free_replay_buffer = ReplayBuffer(
             buffer_size=buffer_size, observation_space=env.observation_space,
@@ -176,6 +173,24 @@ class RLV(SAC):
             else:
                 return 0
 
+    def warmup_inverse_model(self):
+        "Loss inverse model:"
+        for x in range(0, self.warmup_steps):
+            state_obs, target_action, next_state_obs, _, done_obs \
+                = self.action_free_replay_buffer.sample(batch_size=self.batch_size)
+
+            input_inverse_model = th.cat((state_obs, next_state_obs), dim=1)
+            action_obs = self.inverse_model(input_inverse_model)
+
+            loss = self.inverse_model.criterion(action_obs, target_action)
+
+            self.inverse_model.optimizer.zero_grad()
+            loss.backward()
+            self.inverse_model.optimizer.step()
+
+            if x % 100 == 0:
+                print(f"Steps {x}, Loss: {loss}")
+
     def train(self, gradient_steps: int, batch_size: int = 64) -> None:
         # Update optimizers learning rate
         global logging_parameters
@@ -195,7 +210,7 @@ class RLV(SAC):
 
             # get predicted action from inverse model
             input_inverse_model = th.cat((state_obs, next_state_obs), dim=1)
-            action_obs = self.inverse_model.network(input_inverse_model)
+            action_obs = self.inverse_model(input_inverse_model)
 
             self.training_ops.update({'action_obs': action_obs})
 
@@ -274,16 +289,16 @@ class RLV(SAC):
             self.training_ops.update({'actor_loss': actor_loss})
 
             # Compute inverse model loss
-            self.inverse_model_loss = self.inverse_model.calculate_loss(action_obs, target_action)
+            self.inverse_model_loss = self.inverse_model.criterion(action_obs, target_action)
             self.training_ops.update({'inverse_model_loss': self.inverse_model_loss})
 
             # Joint optimization
             self.actor.optimizer.zero_grad()
             # self.critic.optimizer.zero_grad()
-            # self.inverse_model.network.optimizer.zero_grad()
+            # self.inverse_model.optimizer.zero_grad()
 
             # Joint optimization
-            params = list(self.inverse_model.network.parameters()) + list(self.actor.parameters()) \
+            params = list(self.inverse_model.parameters()) + list(self.actor.parameters()) \
                      + list(self.critic.parameters())
             optimizer = optim.Adam(params, lr=self.learning_rate)
 
@@ -299,7 +314,7 @@ class RLV(SAC):
             optimizer.step()
             # self.actor.optimizer.step()
             # self.critic.optimizer.step()
-            # self.inverse_model.network.optimizer.step()
+            # self.inverse_model.optimizer.step()
 
             # Update target networks
             if gradient_step % self.target_update_interval == 0:
