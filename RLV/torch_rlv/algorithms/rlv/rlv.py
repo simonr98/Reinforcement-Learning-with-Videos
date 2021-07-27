@@ -76,7 +76,6 @@ class RLV(SAC):
 
         self.wandb_log = wandb_log
         self.inverse_model_loss = 0
-        self.loss = 0
         self.warmup_steps = warmup_steps
         self.beta_inverse_model = beta_inverse_model
 
@@ -180,16 +179,16 @@ class RLV(SAC):
                 = self.action_free_replay_buffer.sample(batch_size=self.batch_size)
 
             input_inverse_model = th.cat((state_obs, next_state_obs), dim=1)
-            action_obs = self.inverse_model(input_inverse_model)
+            action_obs = self.inverse_model.forward(input_inverse_model)
 
-            loss = self.inverse_model.criterion(action_obs, target_action)
+            self.inverse_model_loss = self.inverse_model.criterion(action_obs, target_action)
 
             self.inverse_model.optimizer.zero_grad()
-            loss.backward()
+            self.inverse_model_loss.backward()
             self.inverse_model.optimizer.step()
 
             if x % 100 == 0:
-                print(f"Steps {x}, Loss: {loss}")
+                print(f"Steps {x}, Loss: {self.inverse_model_loss.item()}")
 
     def train(self, gradient_steps: int, batch_size: int = 64) -> None:
         # Update optimizers learning rate
@@ -210,7 +209,15 @@ class RLV(SAC):
 
             # get predicted action from inverse model
             input_inverse_model = th.cat((state_obs, next_state_obs), dim=1)
-            action_obs = self.inverse_model(input_inverse_model)
+            action_obs = self.inverse_model.forward(input_inverse_model)
+
+            # Compute inverse model loss
+            self.inverse_model_loss = self.inverse_model.criterion(action_obs, target_action)
+
+            # TODO: Optimize Inverse Model
+            # self.inverse_model.optimizer.zero_grad()
+            # self.inverse_model_loss.backward()
+            # self.inverse_model.optimizer.step()
 
             self.training_ops.update({'action_obs': action_obs})
 
@@ -256,7 +263,7 @@ class RLV(SAC):
             # entropy temperature or alpha in the paper
             if ent_coef_loss is not None:
                 self.ent_coef_optimizer.zero_grad()
-                ent_coef_loss.backward(retain_graph=True)
+                ent_coef_loss.backward()
                 self.ent_coef_optimizer.step()
 
             with th.no_grad():
@@ -277,7 +284,11 @@ class RLV(SAC):
             # Compute critic loss
             critic_loss = 0.5 * sum([F.mse_loss(current_q, target_q_values) for current_q in current_q_values])
             critic_losses.append(critic_loss.item())
-            self.training_ops.update({'critic_loss': critic_loss})
+
+            # Optimize the critic
+            self.critic.optimizer.zero_grad()
+            critic_loss.backward()
+            self.critic.optimizer.step()
 
             # Compute actor loss
             # Alternative: actor_loss = th.mean(log_prob - qf1_pi)
@@ -286,35 +297,11 @@ class RLV(SAC):
             min_qf_pi, _ = th.min(q_values_pi, dim=1, keepdim=True)
             actor_loss = (ent_coef * log_prob - min_qf_pi).mean()
             actor_losses.append(actor_loss.item())
-            self.training_ops.update({'actor_loss': actor_loss})
 
-            # Compute inverse model loss
-            self.inverse_model_loss = self.inverse_model.criterion(action_obs, target_action)
-            self.training_ops.update({'inverse_model_loss': self.inverse_model_loss})
-
-            # Joint optimization
+            # Optimize the actor
             self.actor.optimizer.zero_grad()
-            # self.critic.optimizer.zero_grad()
-            # self.inverse_model.optimizer.zero_grad()
-
-            # Joint optimization
-            params = list(self.inverse_model.parameters()) + list(self.actor.parameters()) \
-                     + list(self.critic.parameters())
-            optimizer = optim.Adam(params, lr=self.learning_rate)
-
-            optimizer.zero_grad()
-
-            loss = (abs(critic_loss) + abs(actor_loss) + abs(self.inverse_model_loss))
-            loss.backward()
-
-            self.loss = loss.item()
-
-            self.training_ops.update({'total_loss': loss})
-
-            optimizer.step()
-            # self.actor.optimizer.step()
-            # self.critic.optimizer.step()
-            # self.inverse_model.optimizer.step()
+            actor_loss.backward()
+            self.actor.optimizer.step()
 
             # Update target networks
             if gradient_step % self.target_update_interval == 0:
@@ -335,7 +322,6 @@ class RLV(SAC):
         self.logger.record("train/actor_loss", np.mean(actor_losses))
         self.logger.record("train/critic_loss", np.mean(critic_losses))
         self.logger.record("train/inverse_model_loss", self.inverse_model_loss.item())
-        self.logger.record("train/total_loss", self.loss)
 
         if len(ent_coef_losses) > 0:
             self.logger.record("train/ent_coef_loss", np.mean(ent_coef_losses))
