@@ -24,6 +24,7 @@ class Experiment:
         self.lr_inverse_model = config['lr_inverse_model']
         self.wandb_log = config['wandb_log']
         self.human_data = config['human_data']
+        self.train_sac = config['train_sac']
         self.train_sac_action_free_steps = config['train_sac_action_free_steps']
         self.lr_sac = config['lr_sac']
         self.buffer_size = config['buffer_size']

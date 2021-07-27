@@ -25,11 +25,10 @@ params:
   #reps_per_job: 1 # number of repetitions in each job.
   # the tree structure you define here will be translated to a nested python dictionary
   # env_name: 'visual_door_opener_multi_world'
-  # env_name: 'visual_door_opener_multi_world'
   env_name: 'acrobot_continuous'
   algo_name: 'sac'
   policy: 'MlpPolicy'
-  lr_inverse_model: 0.0002
+  lr_inverse_model: 0.0003
   wandb_log: False
   lr_sac: 0.0003
   buffer_size: 1000000
@@ -37,7 +36,8 @@ params:
   batch_size: 256
   tau: 0.005
   human_data: False
-  train_sac_action_free_steps: 10000
+  train_sac: False
+  train_sac_action_free_steps: 975000
   gamma: 0.99
   train_freq: 1
   gradient_steps: 1

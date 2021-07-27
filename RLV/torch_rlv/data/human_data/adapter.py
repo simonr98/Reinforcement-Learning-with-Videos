@@ -31,5 +31,7 @@ class Adapter:
 if __name__ == '__main__':
     a = Adapter()
     print(a.observations.shape)
-    print(a.actions)
+    print(a.next_observations.shape)
+    print(a.actions.shape)
+    print(a.rewards.shape)
     print(a.terminals.shape)

@@ -19,7 +19,8 @@ from RLV.torch_rlv.algorithms.sac.sac import SAC
 from stable_baselines3.common.noise import ActionNoise
 from stable_baselines3.common.noise import NormalActionNoise
 from RLV.torch_rlv.buffer.type_aliases import ReplayBufferSamples
-from RLV.torch_rlv.human_data.adapter import Adapter
+from RLV.torch_rlv.data.human_data.adapter import Adapter
+from RLV.torch_rlv.data.sac_data.adapter_sac_data import AdapterSAC
 from RLV.torch_rlv.algorithms.sac.softactorcritic import SoftActorCritic, SaveOnBestTrainingRewardCallback
 from RLV.torch_rlv.visualizer.plot import plot_learning_curve, plot_env_step, animate_env_obs
 from datetime import datetime
@@ -102,6 +103,8 @@ class RLV(SAC):
                                           beta=beta_inverse_model,
                                           action_space_dims=self.n_actions,
                                           env=self.env, warmup_steps=self.warmup_steps)
+        self.inverse_model.warmup()
+        self.inverse_model.network.beta=0.0001
 
         self.action_free_replay_buffer = ReplayBuffer(
             buffer_size=buffer_size, observation_space=env.observation_space,
@@ -130,9 +133,33 @@ class RLV(SAC):
         else:
             if sac is not None:
                 print('Training done')
+
+                data = {'observations': sac.replay_buffer.observations, 'actions': sac.replay_buffer.actions,
+                        'next_observations': sac.replay_buffer.next_observations, 'rewards': sac.replay_buffer.rewards,
+                        'terminals': sac.replay_buffer.dones}
+
+                with open(f"../data/sac_data/data_from_sac_trained_for_{num_steps}_steps.pickle", 'wb') \
+                        as handle:
+                    pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
                 self.action_free_replay_buffer = sac.replay_buffer
             else:
-                print('Sac object is None')
+                data = Adapter(env_name='Acrobot')
+                observations = data.observations
+                next_observations = data.next_observations
+                actions = data.actions
+                rewards = data.rewards
+                terminals = data.terminals
+
+                for i in range(0, observations.shape[0]):
+                    self.action_free_replay_buffer.add(
+                        obs=observations[i],
+                        next_obs=next_observations[i],
+                        action=actions[i],
+                        reward=rewards[i],
+                        done=terminals[i],
+                        infos={'': ''}
+                    )
 
     def set_reward(self, reward_obs):
         if self.env_name == 'acrobot_continuous':
@@ -140,18 +167,24 @@ class RLV(SAC):
                 return 10
             else:
                 return -1
+        elif self.env_name == 'franca_robot':
+            return 100 #TODO implement reward function for robot in simulation framework
         else:
-            return -1
+            # reward for mujoco environments
+            if reward_obs > -1:
+                return 10
+            else:
+                return 0
 
     def train(self, gradient_steps: int, batch_size: int = 64) -> None:
         # Update optimizers learning rate
         global logging_parameters
-        # optimizers = [self.actor.optimizer, self.critic.optimizer]
-        # if self.ent_coef_optimizer is not None:
-        #     optimizers += [self.ent_coef_optimizer]
+        optimizers = [self.actor.optimizer, self.critic.optimizer]
+        if self.ent_coef_optimizer is not None:
+            optimizers += [self.ent_coef_optimizer]
 
         # Update learning rate according to lr schedule
-        #self._update_learning_rate(optimizers)
+        self._update_learning_rate(optimizers)
 
         ent_coef_losses, ent_coefs = [], []
         actor_losses, critic_losses = [], []
@@ -246,18 +279,27 @@ class RLV(SAC):
 
             # Joint optimization
             self.actor.optimizer.zero_grad()
-            self.critic.optimizer.zero_grad()
-            self.inverse_model.network.optimizer.zero_grad()
+            # self.critic.optimizer.zero_grad()
+            # self.inverse_model.network.optimizer.zero_grad()
 
-            loss = (abs(critic_loss) + abs(actor_loss) + self.inverse_model_loss)
-            self.loss = loss
-            self.training_ops.update({'total_loss': loss})
+            # Joint optimization
+            params = list(self.inverse_model.network.parameters()) + list(self.actor.parameters()) \
+                     + list(self.critic.parameters())
+            optimizer = optim.Adam(params, lr=self.learning_rate)
 
+            optimizer.zero_grad()
+
+            loss = (abs(critic_loss) + abs(actor_loss) + abs(self.inverse_model_loss))
             loss.backward()
 
-            self.actor.optimizer.step()
-            self.critic.optimizer.step()
-            self.inverse_model.network.optimizer.step()
+            self.loss = loss.item()
+
+            self.training_ops.update({'total_loss': loss})
+
+            optimizer.step()
+            # self.actor.optimizer.step()
+            # self.critic.optimizer.step()
+            # self.inverse_model.network.optimizer.step()
 
             # Update target networks
             if gradient_step % self.target_update_interval == 0:
@@ -278,7 +320,7 @@ class RLV(SAC):
         self.logger.record("train/actor_loss", np.mean(actor_losses))
         self.logger.record("train/critic_loss", np.mean(critic_losses))
         self.logger.record("train/inverse_model_loss", self.inverse_model_loss.item())
-        self.logger.record("train/total_loss", self.loss.item())
+        self.logger.record("train/total_loss", self.loss)
 
         if len(ent_coef_losses) > 0:
             self.logger.record("train/ent_coef_loss", np.mean(ent_coef_losses))
