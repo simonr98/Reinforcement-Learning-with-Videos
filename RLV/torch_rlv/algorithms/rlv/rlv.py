@@ -73,6 +73,7 @@ class RLV(SAC):
             use_sde_at_warmup=use_sde_at_warmup,
             optimize_memory_usage=optimize_memory_usage,
         )
+
         self.target_update_interval = target_update_interval
 
         self.wandb_log = wandb_log
@@ -107,7 +108,6 @@ class RLV(SAC):
             buffer_size=buffer_size, observation_space=env.observation_space,
             action_space=env.action_space, device='cpu', n_envs=1,
             optimize_memory_usage=optimize_memory_usage, handle_timeout_termination=False)
-        self._training_ops = {}
 
     def fill_action_free_buffer(self, human_data=False, num_steps=200000, sac=None):
         if human_data:
@@ -177,18 +177,19 @@ class RLV(SAC):
     def warmup_inverse_model(self):
         "Loss inverse model:"
         for x in range(0, self.warmup_steps):
-            state_obs, target_action, next_state_obs, _, done_obs \
-                = self.action_free_replay_buffer.sample(batch_size=self.batch_size)
+            obs_data = self.action_free_replay_buffer.sample(batch_size=self.batch_size)
+
+            state_obs = obs_data.observations
+            target_action = obs_data.actions
+            next_state_obs = obs_data.next_observations
 
             input_inverse_model = th.cat((state_obs, next_state_obs), dim=1)
             action_obs = self.inverse_model.forward(input_inverse_model)
 
             self.inverse_model_loss = self.inverse_model.criterion(action_obs, target_action)
-            self._training_ops.update({'inverse_model_loss': self.inverse_model_loss})
-            self._training_ops.update({'inverse_model_optimizer': self.inverse_model.optimizer})
 
             self.inverse_model.optimizer.zero_grad()
-            self.inverse_model_loss.backward(retain_graph=True)
+            self.inverse_model_loss.backward()
             self.inverse_model.optimizer.step()
 
             if x % 100 == 0:
@@ -208,24 +209,18 @@ class RLV(SAC):
         actor_losses, critic_losses = [], []
 
         for gradient_step in range(gradient_steps):
-            state_obs, target_action, next_state_obs, _, done_obs \
-                = self.action_free_replay_buffer.sample(batch_size=self.batch_size)
-
-            inverse_model = self.inverse_model
+            obs_data = self.action_free_replay_buffer.sample(batch_size=self.batch_size)
+            state_obs = obs_data.observations
+            target_action = obs_data.actions
+            next_state_obs = obs_data.next_observations
+            done_obs = obs_data.dones
 
             # get predicted action from inverse model
             input_inverse_model = th.cat((state_obs.detach(), next_state_obs.detach()), dim=1)
-            action_obs = inverse_model.forward(input_inverse_model)
+            action_obs = self.inverse_model.forward(input_inverse_model)
 
             # Compute inverse model loss
             self.inverse_model_loss = self.inverse_model.criterion(action_obs, target_action)
-
-            # Add to dictionary for joint optimization
-            # self._training_ops.update({'inverse_model_loss': self.inverse_model_loss})
-            # self._training_ops.update({'inverse_model_optimizer': self.inverse_model.optimizer})
-
-            # inputs=list(self.inverse_model.parameters())
-            self._training_ops.update({'action_obs': action_obs})
 
             # set rewards for observational data
             reward_obs = th.zeros(self.batch_size, 1)
@@ -291,13 +286,15 @@ class RLV(SAC):
             critic_loss = 0.5 * sum([F.mse_loss(current_q, target_q_values) for current_q in current_q_values])
             critic_losses.append(critic_loss.item())
 
-            # Optimize the critic
+            # Optimize Critic
             self.critic.optimizer.zero_grad()
             critic_loss.backward()
             self.critic.optimizer.step()
 
-            # self._training_ops.update({'critic_loss': critic_loss})
-            # self._training_ops.update({'critic_optimizer': self.critic.optimizer})
+            # Optimize Inverse Model
+            self.inverse_model.optimizer.zero_grad()
+            self.inverse_model_loss.backward()
+            self.inverse_model.optimizer.step()
 
             # Compute actor loss
             # Alternative: actor_loss = th.mean(log_prob - qf1_pi)
@@ -307,15 +304,10 @@ class RLV(SAC):
             actor_loss = (ent_coef * log_prob - min_qf_pi).mean()
             actor_losses.append(actor_loss.item())
 
-            # Optimize the actor
+            # Optimize Actor
             self.actor.optimizer.zero_grad()
             actor_loss.backward()
             self.actor.optimizer.step()
-
-            # self._training_ops.update({'actor_loss': actor_loss})
-            # self._training_ops.update({'actor_optimizer': self.actor.optimizer})
-
-            # self.perform_joint_update()
 
             # Update target networks
             if gradient_step % self.target_update_interval == 0:
@@ -344,32 +336,3 @@ class RLV(SAC):
 
         if self.wandb_log:
             wandb.log(logging_parameters)
-
-    # def perform_joint_update(self):
-    #     inverse_model_loss = self._training_ops['inverse_model_loss']
-    #     inverse_model_optimizer = self._training_ops['inverse_model_optimizer']
-    #
-    #     critic_loss = self._training_ops['critic_loss']
-    #     critic_optimizer = self._training_ops['critic_optimizer']
-    #
-    #     actor_loss = self._training_ops['actor_loss']
-    #     actor_optimizer = self._training_ops['actor_optimizer']
-    #
-    #     loss = abs(critic_loss) + abs(actor_loss) + abs(inverse_model_loss)
-    #
-    #     # Joint optimization
-    #     params = list(self.inverse_model.parameters()) + list(self.actor.parameters()) \
-    #              + list(self.critic.parameters())
-    #     optimizer = optim.Adam(params, lr=self.learning_rate)
-    #
-    #     # inverse_model_optimizer.zero_grad()
-    #     # critic_optimizer.zero_grad()
-    #     # actor_optimizer.zero_grad()
-    #
-    #     optimizer.zero_grad()
-    #     loss.backward()
-    #     optimizer.step()
-    #
-    #     # inverse_model_optimizer.step()
-    #     # critic_optimizer.step()
-    #     # actor_optimizer.step()

@@ -35,7 +35,7 @@ params:
   learning_starts: 1000
   batch_size: 256
   tau: 0.005
-  human_data: False
+  human_data: True
   train_sac: False
   train_sac_action_free_steps: 975000
   gamma: 0.99

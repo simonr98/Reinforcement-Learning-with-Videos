@@ -12,7 +12,8 @@ class AdapterSAC:
             self.data = pd.read_pickle(os.path.join(current_directory,
                                                     'data_from_sac_trained_for_975000_steps.pickle'), 'infer')
             self.observations = np.reshape(self.data['observations'],
-                                           (self.data['observations'].shape[0], self.data['observations'].shape[2]))
+                                           (self.data['observations'].shape[0],
+                                            self.data['observations'].shape[2]))
             self.next_observations = np.reshape(self.data['next_observations'],
                                                 (self.data['next_observations'].shape[0],
                                                  self.data['next_observations'].shape[2]))
@@ -20,7 +21,8 @@ class AdapterSAC:
             self.rewards = self.data['rewards']
             self.terminals = self.data['terminals']
             self.actions = np.reshape(self.data['actions'],
-                                      (self.data['actions'].shape[0], self.data['actions'].shape[2]))
+                                      (self.data['actions'].shape[0],
+                                       self.data['actions'].shape[2]))
 
         else:
             print('unknown env name')
