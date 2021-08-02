@@ -45,7 +45,7 @@ class RLV(SAC):
                  verbose: int = 0,
                  seed: Optional[int] = None,
                  device: Union[th.device, str] = "auto",
-                 _init_setup_model: bool = True,
+                 _init_setup_model: bool = True
                  ):
         super(RLV, self).__init__(
             policy=policy,
@@ -53,7 +53,7 @@ class RLV(SAC):
             learning_rate=learning_rate,
             buffer_size=buffer_size,
             learning_starts=learning_starts,
-            batch_size=batch_size,
+            batch_size=(batch_size * 2),
             tau=tau,
             gamma=gamma,
             train_freq=train_freq,
@@ -74,8 +74,9 @@ class RLV(SAC):
             optimize_memory_usage=optimize_memory_usage,
         )
 
-        self.target_update_interval = target_update_interval
+        self.half_batch_size = batch_size
 
+        self.target_update_interval = target_update_interval
         self.wandb_log = wandb_log
         self.inverse_model_loss = 0
         self.warmup_steps = warmup_steps
@@ -177,7 +178,7 @@ class RLV(SAC):
     def warmup_inverse_model(self):
         "Loss inverse model:"
         for x in range(0, self.warmup_steps):
-            obs_data = self.action_free_replay_buffer.sample(batch_size=self.batch_size)
+            obs_data = self.action_free_replay_buffer.sample(batch_size=self.half_batch_size)
 
             state_obs = obs_data.observations
             target_action = obs_data.actions
@@ -209,7 +210,7 @@ class RLV(SAC):
         actor_losses, critic_losses = [], []
 
         for gradient_step in range(gradient_steps):
-            obs_data = self.action_free_replay_buffer.sample(batch_size=self.batch_size)
+            obs_data = self.action_free_replay_buffer.sample(batch_size=self.half_batch_size)
             state_obs = obs_data.observations
             target_action = obs_data.actions
             next_state_obs = obs_data.next_observations
@@ -223,12 +224,12 @@ class RLV(SAC):
             self.inverse_model_loss = self.inverse_model.criterion(action_obs, target_action)
 
             # set rewards for observational data
-            reward_obs = th.zeros(self.batch_size, 1)
-            for i in range(0, self.batch_size):
+            reward_obs = th.zeros(self.half_batch_size, 1)
+            for i in range(0, self.half_batch_size):
                 reward_obs[i] = self.set_reward(reward_obs=reward_obs[i])
 
             # get robot data - sample from replay pool from the SAC model
-            data_int = self.replay_buffer.sample(self.batch_size, env=self._vec_normalize_env)
+            data_int = self.replay_buffer.sample(self.half_batch_size, env=self._vec_normalize_env)
 
             # replace the data used in SAC for each gradient steps by observational plus robot data
             replay_data = ReplayBufferSamples(
