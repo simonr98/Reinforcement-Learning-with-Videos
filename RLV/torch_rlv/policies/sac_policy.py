@@ -499,6 +499,7 @@ class MultiInputPolicy(SACPolicy):
         )
 
 
+register_policy("SACPolicy", SACPolicy)
 register_policy("MlpPolicy", MlpPolicy)
 register_policy("CnnPolicy", CnnPolicy)
 register_policy("MultiInputPolicy", MultiInputPolicy)

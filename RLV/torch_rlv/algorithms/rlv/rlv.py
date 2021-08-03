@@ -110,7 +110,7 @@ class RLV(SAC):
             action_space=env.action_space, device='cpu', n_envs=1,
             optimize_memory_usage=optimize_memory_usage, handle_timeout_termination=False)
 
-    def fill_action_free_buffer(self, human_data=False, num_steps=200000, sac=None):
+    def fill_action_free_buffer(self, human_data=False, num_steps=200000, replay_buffer=None):
         if human_data:
             data = Adapter(data_type='unpaired', env_name='Acrobot')
             observations = data.observations
@@ -129,12 +129,12 @@ class RLV(SAC):
                     infos={'': ''}
                 )
         else:
-            if sac is not None:
+            if replay_buffer is not None:
                 print('Training done')
 
-                data = {'observations': sac.replay_buffer.observations, 'actions': sac.replay_buffer.actions,
-                        'next_observations': sac.replay_buffer.next_observations, 'rewards': sac.replay_buffer.rewards,
-                        'terminals': sac.replay_buffer.dones}
+                data = {'observations': replay_buffer.observations, 'actions': replay_buffer.actions,
+                        'next_observations': replay_buffer.next_observations, 'rewards': replay_buffer.rewards,
+                        'terminals': replay_buffer.dones}
 
                 with open(f"../data/sac_data/data_from_sac_trained_for_{num_steps}_steps.pickle", 'wb') \
                         as handle:
@@ -150,15 +150,29 @@ class RLV(SAC):
                 rewards = data.rewards
                 terminals = data.terminals
 
+                ind = [0]
                 for i in range(0, observations.shape[0]):
-                    self.action_free_replay_buffer.add(
-                        obs=observations[i],
-                        next_obs=next_observations[i],
-                        action=actions[i],
-                        reward=rewards[i],
-                        done=terminals[i],
-                        infos={'': ''}
-                    )
+                    if int(terminals[i][0]) == 1:
+                        ind.append(i)
+                    if int(terminals[i][0]) == 1 and rewards[i] > -1.0:
+                        start = ind[-2] + 1
+
+                        for k in range(0, i - start + 1):
+                            self.action_free_replay_buffer.add(
+                                obs=observations[start+k],
+                                next_obs=next_observations[start+k],
+                                action=actions[start+k],
+                                reward=rewards[start+k],
+                                done=terminals[start+k],
+                                infos={'': ''}
+                            )
+
+                # Test functionality
+                # counter = 0
+                # for i in range(0, 1500):
+                #     if rew[i] > -1:
+                #         counter += 1
+                # print(counter)
 
     def set_reward(self, reward_obs):
         if self.env_name == 'acrobot_continuous':
@@ -167,7 +181,7 @@ class RLV(SAC):
             else:
                 return -1
         elif self.env_name == 'franca_robot':
-            return 100 #TODO implement reward function for robot in simulation framework
+            return 100  # TODO implement reward function for robot in simulation framework
         else:
             # reward for mujoco environments
             if reward_obs > -1:

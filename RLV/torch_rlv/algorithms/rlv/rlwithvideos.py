@@ -66,7 +66,7 @@ class RlWithVideos(SoftActorCritic):
                                            reinit=True,  # allow things to be run multiple times
                                            settings=wandb.Settings(start_method="thread"))
 
-    def run(self, total_timesteps=int(250000), plot=False):
+    def run(self, total_timesteps=int(1000000), plot=False):
         if self.human_data:
             print('Data in Replay Pool of the paper is used to fill the action free buffer')
             self.model.fill_action_free_buffer(human_data=True)
@@ -76,10 +76,10 @@ class RlWithVideos(SoftActorCritic):
             if self.train_sac:
                 self.sac.learn(total_timesteps=self.train_sac_action_free_steps, callback=sac_callback, log_interval=8)
                 self.model.fill_action_free_buffer(num_steps=self.train_sac_action_free_steps,
-                                                   human_data=False, sac=self.sac)
+                                                   human_data=False, replay_buffer=self.sac.replay_buffer)
             else:
                 self.model.fill_action_free_buffer(num_steps=self.train_sac_action_free_steps,
-                                                   human_data=False, sac=None)
+                                                   human_data=False, replay_buffer=None)
 
         callback = SaveOnBestTrainingRewardCallback(check_freq=1000, log_dir=self.log_dir, wandb_log=self.wandb_log)
         self.model.warmup_inverse_model()
