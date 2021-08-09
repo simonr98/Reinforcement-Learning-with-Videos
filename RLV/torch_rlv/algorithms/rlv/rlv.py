@@ -86,24 +86,20 @@ class RLV(SAC):
         self.domain_shift_discrim_lr = 3e-4
         self.paired_loss_lr = 3e-4
         self.paired_loss_scale = paired_loss_scale
-
-        self.domain_shift = domain_shift
         self.domain_shift_generator_weight = domain_shift_generator_weight
         self.domain_shift_discriminator_weight = domain_shift_discriminator_weight
 
-        self.initial_exploration_steps = initial_exploration_steps
 
+        self.initial_exploration_steps = initial_exploration_steps
         self.env_name = env_name
 
-        if 'multi_world' in self.env_name:
-            self.n_actions = env.action_space.shape[0]
-        else:
-            self.n_actions = env.action_space.shape[-1]
+        self.n_actions = env.action_space.shape[-1]
 
-        self.inverse_model = InverseModelNetwork(beta=beta_inverse_model,
-                                                 input_dims=env.observation_space.shape[-1] * 2,
-                                                 output_dims=env.action_space.shape[-1],
-                                                 fc1_dims=64, fc2_dims=64, fc3_dims=64)
+        self.inverse_model = InverseModelNetwork(
+            beta=beta_inverse_model,
+            input_dims=env.observation_space.shape[-1] * 2,
+            output_dims=env.action_space.shape[-1],
+            fc1_dims=64, fc2_dims=64, fc3_dims=64)
 
         self.action_free_replay_buffer = ReplayBuffer(
             buffer_size=buffer_size, observation_space=env.observation_space,
@@ -209,6 +205,9 @@ class RLV(SAC):
 
             if x % 100 == 0:
                 print(f"Steps {x}, Loss: {self.inverse_model_loss.item()}")
+
+    def domain_shift(self):
+        pass #TODO: Implement domain shift
 
     def train(self, gradient_steps: int, batch_size: int = 64) -> None:
         # Update optimizers learning rate

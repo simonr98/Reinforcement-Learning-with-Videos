@@ -1,7 +1,6 @@
 import os
 import gym
 import numpy as np
-import multiworld
 from RLV.torch_rlv.algorithms.sac.softactorcritic import plot_results
 from ..environments.utils import get_environment
 from RLV.torch_rlv.algorithms.utils import init_algorithm
@@ -11,7 +10,6 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.results_plotter import load_results, ts2xy
 from stable_baselines3.common.noise import NormalActionNoise
 from stable_baselines3.common.callbacks import BaseCallback
-from multiworld.core.flat_goal_env import FlatGoalEnv
 
 
 class Experiment:

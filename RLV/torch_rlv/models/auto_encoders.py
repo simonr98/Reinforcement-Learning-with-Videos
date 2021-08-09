@@ -38,7 +38,7 @@ class CoordinateUtils(object):
             y_range = (y_range / (h - 1)) * 2 - 1
         image_x = x_range.unsqueeze(0).repeat_interleave(h, 0)
         image_y = y_range.unsqueeze(0).repeat_interleave(w, 0).t()
-        return image_x, image_y
+        return imageimage_x_x, image_y
 
 
 class SpatialSoftArgmax(nn.Module):
@@ -79,7 +79,7 @@ class DSEncoder(nn.Module):
         out_conv1 = self.activ(self.batch_norm1(self.conv1(x)))
         out_conv2 = self.activ(self.batch_norm2(self.conv2(out_conv1)))
         out_conv3 = self.activ(self.batch_norm3(self.conv3(out_conv2)))
-        out = self.spatial_soft_argmax(out_conv3)
+        out = self.spatial_soft_argmax.forward(out_conv3)
         return out
 
 
@@ -109,10 +109,10 @@ class DeepSpatialAutoEncoder(nn.Module):
 
     def forward(self, x):
         # (N, C, 2)
-        spatial_features = self.encoder(x)
+        spatial_features = self.encoder.forward(x)
         n, c, _2 = spatial_features.size()
         # (N, C * 2 = latent dimension)
-        return self.decoder(spatial_features.view(n, c * 2))
+        return self.decoder.forward(spatial_features.view(n, c * 2))
 
 
 class DSAELoss(object):

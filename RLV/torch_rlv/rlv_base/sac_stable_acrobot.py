@@ -1,7 +1,6 @@
 import os
 
 import gym
-import multiworld
 import RLV.torch_rlv.environments.custom_envs
 import numpy as np
 import matplotlib.pyplot as plt
@@ -10,8 +9,6 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.results_plotter import load_results, ts2xy
 from stable_baselines3.common.noise import NormalActionNoise
 from stable_baselines3.common.callbacks import BaseCallback
-from multiworld.core.flat_goal_env import FlatGoalEnv
-# from RLV.torch_rlv.algorithms.sac.sac import SAC
 from stable_baselines3.sac.sac import SAC
 
 
@@ -68,8 +65,6 @@ def plot_results(log_folder, title='Learning Curve'):
 if __name__ == '__main__':
     log_dir = "/tmp/gym/"
     os.makedirs(log_dir, exist_ok=True)
-
-    multiworld.register_all_envs()
 
     # base_env = gym.make('SawyerPush-v0')
     # env = FlatGoalEnv(base_env)

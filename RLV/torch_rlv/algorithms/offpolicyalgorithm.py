@@ -8,7 +8,7 @@ import gym
 import numpy as np
 import torch as th
 
-from RLV.torch_rlv.algorithms.sac.base_class import BaseAlgorithm
+from RLV.torch_rlv.algorithms.base_class import BaseAlgorithm
 from RLV.torch_rlv.buffer.buffers import DictReplayBuffer, ReplayBuffer
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.noise import ActionNoise
@@ -557,7 +557,7 @@ class OffPolicyAlgorithm(BaseAlgorithm):
                 action, buffer_action = self._sample_action(learning_starts, action_noise)
 
                 # render
-                env.render()
+                #env.render()
 
                 # Rescale and perform action
                 new_obs, reward, done, infos = env.step(action)

@@ -7,7 +7,7 @@ from torch.nn import functional as F
 
 from stable_baselines3.common.buffers import ReplayBuffer
 from stable_baselines3.common.noise import ActionNoise
-from RLV.torch_rlv.algorithms.sac.offpolicyalgorithm import OffPolicyAlgorithm
+from RLV.torch_rlv.algorithms.offpolicyalgorithm import OffPolicyAlgorithm
 from RLV.torch_rlv.buffer.type_aliases import GymEnv, MaybeCallback, Schedule
 from stable_baselines3.common.utils import polyak_update
 from RLV.torch_rlv.policies.sac_policy import SACPolicy
