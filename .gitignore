@@ -119,9 +119,9 @@ vendor/*
 .mujoco/
 .vscode/
 notebooks/
-/RLV/torch_rlv/data/human_data/Visual_Pusher/hand_july_21_26_keep_all_fixed.pkl
-/RLV/torch_rlv/data/human_data/Visual_Pusher/human_paired_oct_10.pkl
-/RLV/torch_rlv/data/human_data/Acrobot/acrobot-25-50.pkl
-/RLV/torch_rlv/data/human_data/Visual_Pusher/hand_july_21_26_keep_all_fixed.pkl
+/RLV/torch_rlv/data/acrobot_human_data/Visual_Pusher/hand_july_21_26_keep_all_fixed.pkl
+/RLV/torch_rlv/data/acrobot_human_data/Visual_Pusher/human_paired_oct_10.pkl
+/RLV/torch_rlv/data/acrobot_human_data/acrobot-25-50.pkl
+/RLV/torch_rlv/data/acrobot_human_data/Visual_Pusher/hand_july_21_26_keep_all_fixed.pkl
 /gym/gym/envs/mujoco/pick_and_place_env.py
 /gym/gym/envs/mujoco/

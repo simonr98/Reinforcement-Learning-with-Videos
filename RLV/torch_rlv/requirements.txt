@@ -2,3 +2,7 @@ torch
 torchvision
 torchaudio
 stable-baselines3[extra]
+open3d
+pybullet
+
+# Python Version 3.8+!

@@ -557,11 +557,10 @@ class OffPolicyAlgorithm(BaseAlgorithm):
                 action, buffer_action = self._sample_action(learning_starts, action_noise)
 
                 # render
-                #env.render()
+                img = env.render("rgbd_front")
 
                 # Rescale and perform action
                 new_obs, reward, done, infos = env.step(action)
-
 
                 self.num_timesteps += 1
                 episode_timesteps += 1
