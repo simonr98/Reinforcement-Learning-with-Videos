@@ -15,7 +15,7 @@ from stable_baselines3.common import utils
 from stable_baselines3.common.callbacks import BaseCallback, CallbackList, ConvertCallback, EvalCallback
 from stable_baselines3.common.env_util import is_wrapped
 from stable_baselines3.common.logger import Logger
-from stable_baselines3.common.monitor import Monitor
+from RLV.torch_rlv.utils.monitor import Monitor
 from stable_baselines3.common.noise import ActionNoise
 from RLV.torch_rlv.policies.policies import BasePolicy, get_policy_from_name
 from stable_baselines3.common.preprocessing import check_for_nested_spaces, is_image_space, is_image_space_channels_first
@@ -29,13 +29,14 @@ from stable_baselines3.common.utils import (
     update_learning_rate,
 )
 from stable_baselines3.common.vec_env import (
-    DummyVecEnv,
     VecEnv,
     VecNormalize,
     VecTransposeImage,
     is_vecenv_wrapped,
     unwrap_vec_normalize,
 )
+
+from RLV.torch_rlv.utils.dummy_vec_env import DummyVecEnv
 
 
 def maybe_make_env(env: Union[GymEnv, str, None], verbose: int) -> Optional[GymEnv]:
@@ -162,6 +163,7 @@ class BaseAlgorithm(ABC):
             self.n_envs = env.num_envs
             self.env = env
 
+
             if supported_action_spaces is not None:
                 assert isinstance(self.action_space, supported_action_spaces), (
                     f"The algorithm only supports {supported_action_spaces} as action spaces "
@@ -195,6 +197,7 @@ class BaseAlgorithm(ABC):
             if verbose >= 1:
                 print("Wrapping the env in a DummyVecEnv.")
             env = DummyVecEnv([lambda: env])
+            #print(env.get_image())
 
         # Make sure that dict-spaces are not nested (not supported)
         check_for_nested_spaces(env.observation_space)
@@ -223,7 +226,6 @@ class BaseAlgorithm(ABC):
                 if verbose >= 1:
                     print("Wrapping the env in a VecTransposeImage.")
                 env = VecTransposeImage(env)
-
         return env
 
     @abstractmethod

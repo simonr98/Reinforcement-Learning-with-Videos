@@ -99,7 +99,6 @@ class SAC(OffPolicyAlgorithm):
         seed: Optional[int] = None,
         device: Union[th.device, str] = "auto",
         _init_setup_model: bool = True,
-        pre_training = False
     ):
 
         super(SAC, self).__init__(
@@ -137,7 +136,6 @@ class SAC(OffPolicyAlgorithm):
         self.ent_coef = ent_coef
         self.target_update_interval = target_update_interval
         self.ent_coef_optimizer = None
-        self.pre_training = pre_training
 
         if _init_setup_model:
             self._setup_model()

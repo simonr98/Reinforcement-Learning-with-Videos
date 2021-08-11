@@ -125,3 +125,7 @@ notebooks/
 /RLV/torch_rlv/data/acrobot_human_data/Visual_Pusher/hand_july_21_26_keep_all_fixed.pkl
 /gym/gym/envs/mujoco/pick_and_place_env.py
 /gym/gym/envs/mujoco/
+/RLV/torch_rlv/data/acrobot_human_data/acrobot-25-50(1).pkl
+/RLV/torch_rlv/data/acrobot_human_data/acrobot-975-1000.pkl
+/RLV/torch_rlv/data/acrobot_sac_data/data_from_sac_trained_for_2000_steps.pickle
+/RLV/torch_rlv/data/acrobot_sac_data/data_from_sac_trained_for_975000_steps.pickle

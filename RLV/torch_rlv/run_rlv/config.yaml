@@ -35,8 +35,8 @@ params:
   learning_starts: 1000
   batch_size: 256
   tau: 0.005
-  acrobot_human_data: True
-  train_sac: False
+  acrobot_human_data: False
+  train_sac: True
   train_sac_action_free_steps: 975000
   gamma: 0.99
   train_freq: 1
@@ -64,8 +64,8 @@ repetitions: 1   # repeat 8 times
 
 # Experiment Parameters
 params:
-  env_name: "acrobot_continuous"
-  algo_name: 'rlv'
+  env_name: "push"
+  algo_name: 'sac'
   policy: 'MlpPolicy'
 
 

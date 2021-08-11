@@ -2,11 +2,13 @@ import io
 import pathlib
 import time
 import warnings
+import pickle
 from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 import gym
 import numpy as np
 import torch as th
+import matplotlib.pyplot as plt
 
 from RLV.torch_rlv.algorithms.base_class import BaseAlgorithm
 from RLV.torch_rlv.buffer.buffers import DictReplayBuffer, ReplayBuffer
@@ -556,8 +558,10 @@ class OffPolicyAlgorithm(BaseAlgorithm):
                 # Select action randomly or according to policy
                 action, buffer_action = self._sample_action(learning_starts, action_noise)
 
-                # render
-                img = env.render("rgbd_front")
+                obs = env._obs_from_buf()
+
+                img = self.env.get_image()
+                print(img)
 
                 # Rescale and perform action
                 new_obs, reward, done, infos = env.step(action)
@@ -609,3 +613,18 @@ class OffPolicyAlgorithm(BaseAlgorithm):
         callback.on_rollout_end()
 
         return RolloutReturn(mean_reward, num_collected_steps, num_collected_episodes, continue_training)
+
+    # def store_data:
+        # if replay_buffer is not None:
+        #     print('Training done')
+        #
+        #     data = {'observations': replay_buffer.observations, 'actions': replay_buffer.actions,
+        #             'next_observations': replay_buffer.next_observations, 'rewards': replay_buffer.rewards,
+        #             'terminals': replay_buffer.dones}
+        #
+        #     with open(f"../data/sac_data/data_from_sac_trained_for_{num_steps}_steps.pickle", 'wb') \
+        #             as handle:
+        #         pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        #
+        #     self.action_free_replay_buffer = sac.replay_buffer
+        # else:
