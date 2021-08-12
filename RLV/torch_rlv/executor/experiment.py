@@ -25,6 +25,7 @@ class Experiment:
         self.train_sac = config['train_sac']
         self.train_sac_action_free_steps = config['train_sac_action_free_steps']
         self.lr_sac = config['lr_sac']
+        self.total_steps = config['total_steps']
         self.buffer_size = config['buffer_size']
         self.learning_starts = config['learning_starts']
         self.batch_size = config['batch_size']

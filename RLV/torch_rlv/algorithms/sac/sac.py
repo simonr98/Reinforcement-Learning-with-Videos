@@ -74,6 +74,8 @@ class SAC(OffPolicyAlgorithm):
         self,
         policy: Union[str, Type[SACPolicy]],
         env: Union[GymEnv, str],
+        env_name,
+        total_steps,
         learning_rate: Union[float, Schedule] = 3e-4,
         buffer_size: int = 1000000,  # 1e6
         learning_starts: int = 100,
@@ -104,6 +106,8 @@ class SAC(OffPolicyAlgorithm):
         super(SAC, self).__init__(
             policy,
             env,
+            env_name,
+            total_steps,
             SACPolicy,
             learning_rate,
             buffer_size,

@@ -17,33 +17,26 @@ class SoftActorCritic:
                  ent_coef='auto', target_update_interval=1, target_entropy='auto', use_sde=False, sde_sample_freq=- 1,
                  use_sde_at_warmup=False, tensorboard_log=None, create_eval_env=False, policy_kwargs=None, verbose=0,
                  seed=None, device='auto', _init_setup_model=True, project_name='sac_experiment', run_name='test_sac',
-                 log_dir='/tmp/gym/'):
+                 log_dir='/tmp/gym/', total_steps=250000):
 
         self.log_dir = log_dir
         os.makedirs(self.log_dir, exist_ok=True)
 
         self.wandb_log = wandb_log
-
         self.config = config
 
         self.env = env
         self.env = Monitor(env, self.log_dir)
 
         self.env_name = env_name
-
         self.project_name = project_name
         self.run_name = run_name
 
-        if 'multi_world' in self.env_name:
-            self.n_actions = env.action_space.shape[0]
-        else:
-            self.n_actions = env.action_space.shape[-1]
-
-        self.total_timesteps = 0
-
+        self.total_steps = total_steps
+        self.n_actions = env.action_space.shape[-1]
         action_noise = NormalActionNoise(mean=np.zeros(self.n_actions), sigma=0.1 * np.ones(self.n_actions))
 
-        self.model = SAC(policy, env, learning_rate=learning_rate, buffer_size=buffer_size,
+        self.model = SAC(policy, env, env_name, total_steps=total_steps, learning_rate=learning_rate, buffer_size=buffer_size,
                          learning_starts=learning_starts, batch_size=batch_size, tau=tau, gamma=gamma,
                          train_freq=train_freq, gradient_steps=gradient_steps, action_noise=action_noise,
                          optimize_memory_usage=optimize_memory_usage, ent_coef=ent_coef,
@@ -55,10 +48,9 @@ class SoftActorCritic:
             self.wandb_logger = wandb.init(project=project_name, config=self.config, name=run_name, reinit=True,
                                            settings=wandb.Settings(start_method="thread"))
 
-    def run(self, total_timesteps=int(250000), plot=False):
+    def run(self, plot=False):
         callback = SaveOnBestTrainingRewardCallback(check_freq=1000, log_dir=self.log_dir, wandb_log=self.wandb_log)
-        self.model.learn(total_timesteps=total_timesteps, callback=callback)
-        self.total_timesteps =+ total_timesteps
+        self.model.learn(total_timesteps=self.total_steps, callback=callback)
 
         if plot:
             plot_results(self.log_dir)

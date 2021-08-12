@@ -78,6 +78,8 @@ class OffPolicyAlgorithm(BaseAlgorithm):
         self,
         policy: Type[BasePolicy],
         env: Union[GymEnv, str],
+        env_name,
+        total_steps,
         policy_base: Type[BasePolicy],
         learning_rate: Union[float, Schedule],
         buffer_size: int = 1000000,  # 1e6
@@ -138,6 +140,9 @@ class OffPolicyAlgorithm(BaseAlgorithm):
         self.replay_buffer_kwargs = replay_buffer_kwargs
         self._episode_storage = None
 
+        self.env_name = env_name
+        self.total_steps = total_steps
+
         # Remove terminations (dones) that are due to time limit
         # see https://github.com/hill-a/stable-baselines/issues/863
         self.remove_time_limit_termination = remove_time_limit_termination
@@ -152,6 +157,10 @@ class OffPolicyAlgorithm(BaseAlgorithm):
             self.policy_kwargs["use_sde"] = self.use_sde
         # For gSDE only
         self.use_sde_at_warmup = use_sde_at_warmup
+
+        self.dataset = {'observation': [], 'observation_img': [], 'action': [],
+                        'next_observation': [], 'reward': [],  'done': []}
+        self.ctr = 0
 
     def _convert_train_freq(self) -> None:
         """
@@ -555,16 +564,33 @@ class OffPolicyAlgorithm(BaseAlgorithm):
                     # Sample a new noise matrix
                     self.actor.reset_noise()
 
+                if not self.env_name == 'acrobot_continuous':
+                    obs = env._obs_from_buf()
+                    obs_img = self.env.get_image()
+                else:
+                    env.render()
+
+
                 # Select action randomly or according to policy
                 action, buffer_action = self._sample_action(learning_starts, action_noise)
 
-                obs = env._obs_from_buf()
-
-                img = self.env.get_image()
-                print(img)
-
                 # Rescale and perform action
                 new_obs, reward, done, infos = env.step(action)
+
+                if not self.env_name == 'acrobot_continuous':
+                    # create dataset with observation_images
+                    self.dataset['observation'].append(obs)
+                    self.dataset['observation_img'].append(obs_img)
+                    self.dataset['action'].append(action)
+                    self.dataset['next_observation'].append(new_obs)
+                    self.dataset['reward'].append(reward)
+                    self.dataset['done'].append(done)
+                    self.ctr += 1
+
+                    if done:
+                        with open(f'../data/pusher_simulated_data/'
+                                  f'simulated_pusher_data_{self.total_steps}_steps.pickle', 'wb') as handle:
+                            pickle.dump(self.dataset, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
                 self.num_timesteps += 1
                 episode_timesteps += 1
@@ -613,18 +639,3 @@ class OffPolicyAlgorithm(BaseAlgorithm):
         callback.on_rollout_end()
 
         return RolloutReturn(mean_reward, num_collected_steps, num_collected_episodes, continue_training)
-
-    # def store_data:
-        # if replay_buffer is not None:
-        #     print('Training done')
-        #
-        #     data = {'observations': replay_buffer.observations, 'actions': replay_buffer.actions,
-        #             'next_observations': replay_buffer.next_observations, 'rewards': replay_buffer.rewards,
-        #             'terminals': replay_buffer.dones}
-        #
-        #     with open(f"../data/sac_data/data_from_sac_trained_for_{num_steps}_steps.pickle", 'wb') \
-        #             as handle:
-        #         pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
-        #
-        #     self.action_free_replay_buffer = sac.replay_buffer
-        # else:

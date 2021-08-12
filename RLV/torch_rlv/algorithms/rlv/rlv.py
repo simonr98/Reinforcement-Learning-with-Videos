@@ -27,9 +27,9 @@ from stable_baselines3.common.utils import polyak_update
 
 
 class RLV(SAC):
-    def __init__(self, warmup_steps=1500, beta_inverse_model=0.0003, env_name='acrobot_continuous', policy='MlpPolicy',
-                 env=None, learning_rate=0.0003, buffer_size=1000000, learning_starts=1000, batch_size=256, tau=0.005,
-                 gamma=0.99, train_freq=1, gradient_steps=1, optimize_memory_usage=False, ent_coef='auto',
+    def __init__(self, env_name, total_steps, warmup_steps=1500, beta_inverse_model=0.0003, policy='MlpPolicy',
+                 env=None, learning_rate=0.0003, buffer_size=1000000, learning_starts=1000, batch_size=256,
+                 tau=0.005, gamma=0.99, train_freq=1, gradient_steps=1, optimize_memory_usage=False, ent_coef='auto',
                  target_update_interval=10, target_entropy='auto', initial_exploration_steps=1000, wandb_log=False,
                  domain_shift=False, domain_shift_generator_weight=0.01,
                  domain_shift_discriminator_weight=0.01, paired_loss_scale=1.0,
@@ -50,6 +50,8 @@ class RLV(SAC):
         super(RLV, self).__init__(
             policy=policy,
             env=env,
+            env_name=env_name,
+            total_steps = total_steps,
             learning_rate=learning_rate,
             buffer_size=buffer_size,
             learning_starts=learning_starts,
@@ -91,7 +93,6 @@ class RLV(SAC):
 
 
         self.initial_exploration_steps = initial_exploration_steps
-        self.env_name = env_name
 
         self.n_actions = env.action_space.shape[-1]
 
