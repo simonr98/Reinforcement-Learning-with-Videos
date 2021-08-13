@@ -8,7 +8,6 @@ class AdapterSAC:
     def __init__(self):
         current_directory = os.path.dirname(__file__)
         path = os.path.join(current_directory, 'data_from_sac_trained_for_975000_steps.pickle')
-        print(path)
         self.data = pd.read_pickle(path, compression='infer')
         self.observations = np.reshape(self.data['observations'],
                                        (self.data['observations'].shape[0],
