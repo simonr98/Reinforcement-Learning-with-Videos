@@ -15,7 +15,7 @@ class ConvNet(nn.Module):
         Model Constructor, Initialize all the layers to be used
         """
         super(ConvNet, self).__init__()
-        ########   Your code begins here   ########
+
         self.conv1 = nn.Conv2d(3, 16, 5)
         self.conv2 = nn.Conv2d(16, 16, 5)
         self.conv3 = nn.Conv2d(16, 32, 5)
@@ -23,7 +23,6 @@ class ConvNet(nn.Module):
         self.fc1 = nn.Linear(32 * 11 * 11, 64)
         self.fc2 = nn.Linear(64, 64)
         self.fc3 = nn.Linear(64, output_dims)
-        ########   Your code ends here   ########
 
     def forward(self, x):
         """
@@ -34,29 +33,24 @@ class ConvNet(nn.Module):
         :param x: input data of this model
         :return: output data of this model
         """
-        ########   Your code begins here   ########
-        x = self.conv1(x)
-        x = F.relu(x)
+        x = F.relu(self.conv1(x))
         x = self.max_pool(x)
-        #
-        x = self.conv2(x)
-        x = F.relu(x)
+
+        x = F.relu(self.conv2(x))
         x = self.max_pool(x)
-        #
-        x = self.conv3(x)
-        x = F.relu(x)
+
+        x = F.relu(self.conv3(x))
         x = self.max_pool(x)
-        #
+       
         x = T.flatten(x, 1)
-        #
+        
         x = self.fc1(x)
         x = F.relu(x)
-        #
+        
         x = self.fc2(x)
         x = F.relu(x)
-        #
+        
         x = self.fc3(x)
-        ########   Your code ends here   ########
         return x
 
 if __name__ == '__main__':
