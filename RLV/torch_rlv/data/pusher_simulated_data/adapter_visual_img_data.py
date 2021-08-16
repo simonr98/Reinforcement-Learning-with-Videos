@@ -8,9 +8,9 @@ from PIL import Image
 class AdapterVisualImgData:
     def __init__(self):
         current_directory = os.path.dirname(__file__)
-        path = os.path.join(current_directory, 'simulated_pusher_data_1500_steps.pickle')
+        path = os.path.join(current_directory, 'simulated_pusher_data_4000_steps.pickle')
 
-        self.data = pd.read_pickle(path, compression='infer')
+        self.data = pickle.load(open(path, 'rb'))
         self.n = len(self.data['observation'])
         self.observation = np.reshape(np.array(self.data['observation']), (self.n, 32))
         self.observation_img = np.reshape(np.array(self.data['observation_img']), (self.n, 3, 120, 120))
@@ -28,5 +28,7 @@ if __name__ == '__main__':
     print(a.reward.shape)
     print(a.done.shape)
 
-    x = Image.fromarray(a.observation_img[0])
+
+    x = np.reshape(a.observation_img[0], (120, 120, 3))
+    x = Image.fromarray(x)
     x.show()

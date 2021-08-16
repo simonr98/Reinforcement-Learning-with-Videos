@@ -587,10 +587,13 @@ class OffPolicyAlgorithm(BaseAlgorithm):
                     self.dataset['done'].append(done)
                     self.ctr += 1
 
-                    if done:
-                        with open(f'../data/pusher_simulated_data/'
-                                  f'simulated_pusher_data_{self.total_steps}_steps.pickle', 'wb') as handle:
-                            pickle.dump(self.dataset, handle, protocol=pickle.HIGHEST_PROTOCOL)
+                    if self.ctr % 50000 == 0 and self.ctr < self.total_steps:
+                        pickle.dump(self.dataset, open(f'../data/pusher_simulated_data/'
+                                                       f'simulated_pusher_data_{self.ctr}_steps.pickle', 'wb'))
+
+                    if self.ctr == self.total_steps:
+                        pickle.dump(self.dataset, open(f'../data/pusher_simulated_data/'
+                                  f'simulated_pusher_data_{self.total_steps}_steps.pickle', 'wb'))
 
                 self.num_timesteps += 1
                 episode_timesteps += 1

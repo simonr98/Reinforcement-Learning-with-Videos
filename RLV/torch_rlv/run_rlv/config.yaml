@@ -41,7 +41,7 @@ params:
   gamma: 0.99
   train_freq: 1
   gradient_steps: 1
-  total_steps: 1500
+  total_steps: 500000
   project_name: 'sac_experiment'
   run_name: 'test_sac'
   log_dir: '/tmp/gym/'
