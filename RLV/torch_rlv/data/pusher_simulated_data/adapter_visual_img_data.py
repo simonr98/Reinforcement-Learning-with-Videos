@@ -8,7 +8,7 @@ from PIL import Image
 class AdapterVisualImgData:
     def __init__(self):
         current_directory = os.path.dirname(__file__)
-        path = os.path.join(current_directory, 'simulated_pusher_data_4000_steps.pickle')
+        path = os.path.join(current_directory, 'simulated_pusher_data_50000_steps.pickle')
 
         self.data = pickle.load(open(path, 'rb'))
         self.n = len(self.data['observation'])
