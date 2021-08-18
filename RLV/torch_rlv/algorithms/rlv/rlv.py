@@ -7,6 +7,8 @@ import numpy as np
 import torch as th
 from torch.nn import functional as F
 
+import torch.nn as nn
+
 from RLV.torch_rlv.buffer.type_aliases import GymEnv, MaybeCallback, Schedule
 
 import wandb
@@ -24,6 +26,9 @@ from RLV.torch_rlv.algorithms.sac.softactorcritic import SoftActorCritic, SaveOn
 from RLV.torch_rlv.visualizer.plot import plot_learning_curve, plot_env_step, animate_env_obs
 from datetime import datetime
 from stable_baselines3.common.utils import polyak_update
+from RLV.torch_rlv.models.convnet import ConvNet
+from RLV.torch_rlv.models.discriminator import DiscriminatorNetwork
+from RLV.torch_rlv.data.pusher_simulated_data.adapter_visual_img_data import AdapterVisualImgData
 
 
 class RLV(SAC):
@@ -45,7 +50,7 @@ class RLV(SAC):
                  verbose: int = 0,
                  seed: Optional[int] = None,
                  device: Union[th.device, str] = "auto",
-                 _init_setup_model: bool = True
+                 _init_setup_model: bool = True,
                  ):
         super(RLV, self).__init__(
             policy=policy,
@@ -85,22 +90,38 @@ class RLV(SAC):
         self.beta_inverse_model = beta_inverse_model
 
         self.domain_shift = domain_shift
-        self.domain_shift_discrim_lr = 3e-4
-        self.paired_loss_lr = 3e-4
-        self.paired_loss_scale = paired_loss_scale
-        self.domain_shift_generator_weight = domain_shift_generator_weight
-        self.domain_shift_discriminator_weight = domain_shift_discriminator_weight
+        # self.domain_shift_discrim_lr = 3e-4
+        # self.paired_loss_lr = 3e-4
+        # self.paired_loss_scale = paired_loss_scale
+        # self.domain_shift_generator_weight = domain_shift_generator_weight
+        # self.domain_shift_discriminator_weight = domain_shift_discriminator_weight
 
 
         self.initial_exploration_steps = initial_exploration_steps
-
         self.n_actions = env.action_space.shape[-1]
+
+
 
         self.inverse_model = InverseModelNetwork(
             beta=beta_inverse_model,
             input_dims=env.observation_space.shape[-1] * 2,
             output_dims=env.action_space.shape[-1],
             fc1_dims=64, fc2_dims=64, fc3_dims=64)
+
+        if self.domain_shift:
+            self.generator = ConvNet(output_dims=self.env.observation_space.shape[-1])
+            self.discriminator = DiscriminatorNetwork(input_dims=self.env.observation_space.shape[-1],
+                                                      beta=3e-8, fc1_dims=64, fc2_dims=64, fc3_dims=64)
+            # Optimizers
+            self.generator_optimizer = torch.optim.Adam(self.generator.parameters(), lr=3e-8)
+            self.discriminator_optimizer = torch.optim.Adam(self.discriminator.parameters(), lr=3e-8)
+
+            # loss
+            self.domain_shift_loss = nn.BCELoss()
+
+            # data
+            self.simulation_data = AdapterVisualImgData()
+            self.simulation_data.ctr = 0
 
         self.action_free_replay_buffer = ReplayBuffer(
             buffer_size=buffer_size, observation_space=env.observation_space,
@@ -207,8 +228,49 @@ class RLV(SAC):
             if x % 100 == 0:
                 print(f"Steps {x}, Loss: {self.inverse_model_loss.item()}")
 
-    def domain_shift(self):
-        pass #TODO: Implement domain shift
+
+
+    def train_encoder(self, domain_shift=False, training_steps: int = 500):
+        if domain_shift:
+            input_length = env.observation_space.shape[-1]
+
+            lower_bound = self.simulation_data_ctr * self.half_batch_size
+            upper_bound = lower_bound + self.half_batch_size
+
+            observation = self.simulation_data.observation[lower_bound:upper_bound]
+            observation_img = self.simulation_data.observation_img[lower_bound:upper_bound]
+
+            # TODO: get paired data (raw and noisy images)
+
+            for i in range(training_steps):
+                # zero the gradients on each iteration
+                self.generator_optimizer.zero_grad()
+
+                encoder_input, encoder_target, true_labels = observation_img, observation, th.ones(self.half_batch_size)
+
+                encoder_output = self.encoder(encoder_input)
+
+                # Train the generator
+                generator_discriminator_out = self.discriminator(encoder_output)
+                # TODO: check if paired loss is added here or below
+                generator_loss = self.loss(generator_discriminator_out, true_labels) \
+                                 + th.abs((self.encoder(s_int) - self.encoder(s_obs))).pow(2)
+                generator_loss.backward()
+                generator_optimizer.step()
+
+                # Train the discriminator on the true/generated data
+                self.discriminator_optimizer.zero_grad()
+                true_discriminator_out = self.discriminator(encoder_target)
+                true_discriminator_loss = self.loss(true_discriminator_out, true_labels)
+
+                # add .detach() here think about this
+                generator_discriminator_out = self.discriminator(encoder_output.detach())
+                generator_discriminator_loss = self.loss(generator_discriminator_out, th.zeros(self.half_batch_size))
+                #TODO: check if paired loss is added here or above
+                discriminator_loss = (true_discriminator_loss + generator_discriminator_loss) / 2
+                discriminator_loss.backward()
+                discriminator_optimizer.step()
+
 
     def train(self, gradient_steps: int, batch_size: int = 64) -> None:
         # Update optimizers learning rate

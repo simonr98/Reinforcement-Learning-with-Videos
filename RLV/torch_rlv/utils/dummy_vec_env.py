@@ -38,6 +38,10 @@ class DummyVecEnv(VecEnv):
     def get_image(self):
         return self.env.get_image()
 
+    def get_raw_image(self):
+        return self.env.get_raw_image()
+
+
     def step_async(self, actions: np.ndarray) -> None:
         self.actions = actions
 

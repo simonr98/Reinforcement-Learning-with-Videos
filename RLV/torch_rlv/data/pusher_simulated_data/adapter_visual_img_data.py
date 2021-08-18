@@ -1,6 +1,7 @@
 import pickle
 import pandas as pd
 import os
+import torch as T
 import numpy as np
 from PIL import Image
 
@@ -12,12 +13,12 @@ class AdapterVisualImgData:
 
         self.data = pickle.load(open(path, 'rb'))
         self.n = len(self.data['observation'])
-        self.observation = np.reshape(np.array(self.data['observation']), (self.n, 32))
-        self.observation_img = np.reshape(np.array(self.data['observation_img']), (self.n, 3, 120, 120))
-        self.action = np.reshape(np.array(self.data['action']), (self.n, 4))
-        self.next_observation = np.reshape(np.array(self.data['next_observation']), (self.n, 32))
-        self.reward = np.array(self.data["reward"])
-        self.done = np.array(self.data["done"])
+        self.observation = T.from_numpy(np.reshape(np.array(self.data['observation']), (self.n, 32)))
+        self.observation_img = T.from_numpy(np.reshape(np.array(self.data['observation_img']), (self.n, 3, 120, 120)))
+        self.action = T.from_numpy(np.reshape(np.array(self.data['action']), (self.n, 4)))
+        self.next_observation = T.from_numpy(np.reshape(np.array(self.data['next_observation']), (self.n, 32)))
+        self.reward = T.from_numpy(np.array(self.data["reward"]))
+        self.done = T.from_numpy(np.array(self.data["done"]))
 
 if __name__ == '__main__':
     a = AdapterVisualImgData()
@@ -29,6 +30,6 @@ if __name__ == '__main__':
     print(a.done.shape)
 
 
-    x = np.reshape(a.observation_img[0], (120, 120, 3))
+    x = np.reshape((a.observation_img[0]).detach().numpy(), (120, 120, 3))
     x = Image.fromarray(x)
     x.show()

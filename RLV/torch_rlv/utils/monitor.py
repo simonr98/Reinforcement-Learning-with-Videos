@@ -60,6 +60,9 @@ class Monitor(gym.Wrapper):
     def get_image(self):
         return self.env.get_image()
 
+    def get_raw_image(self):
+        return self.env.get_raw_image()
+
     def reset(self, **kwargs) -> GymObs:
         """
         Calls the Gym environment reset. Can only be called if the environment is over, or if allow_early_resets is True

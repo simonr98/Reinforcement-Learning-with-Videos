@@ -158,7 +158,7 @@ class OffPolicyAlgorithm(BaseAlgorithm):
         # For gSDE only
         self.use_sde_at_warmup = use_sde_at_warmup
 
-        self.dataset = {'observation': [], 'observation_img': [], 'action': [],
+        self.dataset = {'observation': [], 'observation_img': [], 'observation_img_raw': [], 'action': [],
                         'next_observation': [], 'reward': [],  'done': []}
         self.ctr = 0
 
@@ -567,6 +567,7 @@ class OffPolicyAlgorithm(BaseAlgorithm):
                 if not self.env_name == 'acrobot_continuous':
                     obs = env._obs_from_buf()
                     obs_img = self.env.get_image()
+                    obs_img_raw = self.env.get_raw_image()
                 else:
                     env.render()
 
@@ -581,19 +582,21 @@ class OffPolicyAlgorithm(BaseAlgorithm):
                     # create dataset with observation_images
                     self.dataset['observation'].append(obs)
                     self.dataset['observation_img'].append(obs_img)
+                    self.dataset['observation_img_raw'].append(obs_img_raw)
                     self.dataset['action'].append(action)
                     self.dataset['next_observation'].append(new_obs)
                     self.dataset['reward'].append(reward)
                     self.dataset['done'].append(done)
                     self.ctr += 1
 
-                    if self.ctr % 50000 == 0 and self.ctr < self.total_steps:
-                        pickle.dump(self.dataset, open(f'../data/pusher_simulated_data/'
-                                                       f'simulated_pusher_data_{self.ctr}_steps.pickle', 'wb'))
+                    if self.ctr % (self.total_steps//10) == 0:
+                        with open(f'../data/pusher_simulated_data/simulated_pusher_data'
+                                  f'_{self.total_steps}_steps.pickle', 'wb') as temp:
+                            pickle.dump(self.dataset, temp)
+                        self.dataset = None
+                        self.dataset = {'observation': [], 'observation_img': [], 'observation_img_raw': [], 'action': [],
+                        'next_observation': [], 'reward': [],  'done': []}
 
-                    if self.ctr == self.total_steps:
-                        pickle.dump(self.dataset, open(f'../data/pusher_simulated_data/'
-                                  f'simulated_pusher_data_{self.total_steps}_steps.pickle', 'wb'))
 
                 self.num_timesteps += 1
                 episode_timesteps += 1

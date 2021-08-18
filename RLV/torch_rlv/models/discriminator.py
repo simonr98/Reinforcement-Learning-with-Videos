@@ -7,7 +7,7 @@ import torch.optim as optim
 
 class DiscriminatorNetwork(nn.Module):
 
-    def __init__(self, input_dims, beta=0.00000003, fc1_dims=64, fc2_dims=64, fc3_dims=64, name='discriminator',
+    def __init__(self, input_dims, fc1_dims=64, fc2_dims=64, fc3_dims=64, name='discriminator',
                  chkpt_dir='tmp/discriminator'):
         super(DiscriminatorNetwork, self).__init__()
         self.beta = beta
@@ -24,7 +24,6 @@ class DiscriminatorNetwork(nn.Module):
         self.fc2 = nn.Linear(self.fc1_dims, self.fc2_dims)
         self.fc3 = nn.Linear(self.fc2_dims, self.fc3_dims)
         self.q = nn.Linear(self.fc3_dims, output_dims)
-        self.optimizer = optim.Adam(self.parameters(), lr=beta)
         self.device = T.device('cuda:0' if T.cuda.is_available() else 'cpu')
 
     def forward(self, x):
