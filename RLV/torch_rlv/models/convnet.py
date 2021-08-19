@@ -23,6 +23,7 @@ class ConvNet(nn.Module):
         self.fc1 = nn.Linear(32 * 11 * 11, 64)
         self.fc2 = nn.Linear(64, 64)
         self.fc3 = nn.Linear(64, output_dims)
+        self.criterion = nn.MSELoss()
 
     def forward(self, x):
         """

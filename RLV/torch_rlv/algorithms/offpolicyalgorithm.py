@@ -591,9 +591,8 @@ class OffPolicyAlgorithm(BaseAlgorithm):
 
                     if self.ctr % (self.total_steps//10) == 0:
                         with open(f'../data/pusher_simulated_data/simulated_pusher_data'
-                                  f'_{self.total_steps}_steps.pickle', 'wb') as temp:
+                                  f'_{self.total_steps}_steps.pickle', 'w+b') as temp:
                             pickle.dump(self.dataset, temp)
-                        self.dataset = None
                         self.dataset = {'observation': [], 'observation_img': [], 'observation_img_raw': [], 'action': [],
                         'next_observation': [], 'reward': [],  'done': []}
 

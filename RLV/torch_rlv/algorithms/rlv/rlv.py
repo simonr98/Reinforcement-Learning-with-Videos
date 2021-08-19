@@ -29,6 +29,7 @@ from stable_baselines3.common.utils import polyak_update
 from RLV.torch_rlv.models.convnet import ConvNet
 from RLV.torch_rlv.models.discriminator import DiscriminatorNetwork
 from RLV.torch_rlv.data.pusher_simulated_data.adapter_visual_img_data import AdapterVisualImgData
+from RLV.torch_rlv.buffer.action_free_buffer import ActionFreeReplayBuffer
 
 
 class RLV(SAC):
@@ -36,7 +37,7 @@ class RLV(SAC):
                  env=None, learning_rate=0.0003, buffer_size=1000000, learning_starts=1000, batch_size=256,
                  tau=0.005, gamma=0.99, train_freq=1, gradient_steps=1, optimize_memory_usage=False, ent_coef='auto',
                  target_update_interval=10, target_entropy='auto', initial_exploration_steps=1000, wandb_log=False,
-                 domain_shift=False, domain_shift_generator_weight=0.01,
+                 domain_shift=True, domain_shift_generator_weight=0.01,
                  domain_shift_discriminator_weight=0.01, paired_loss_scale=1.0,
                  action_noise: Optional[ActionNoise] = None,
                  replay_buffer_class: Optional[ReplayBuffer] = None,
@@ -108,25 +109,33 @@ class RLV(SAC):
             output_dims=env.action_space.shape[-1],
             fc1_dims=64, fc2_dims=64, fc3_dims=64)
 
+
         if self.domain_shift:
-            self.generator = ConvNet(output_dims=self.env.observation_space.shape[-1])
+            self.encoder = ConvNet(output_dims=self.env.observation_space.shape[-1])
             self.discriminator = DiscriminatorNetwork(input_dims=self.env.observation_space.shape[-1],
                                                       beta=3e-8, fc1_dims=64, fc2_dims=64, fc3_dims=64)
             # Optimizers
-            self.generator_optimizer = torch.optim.Adam(self.generator.parameters(), lr=3e-8)
-            self.discriminator_optimizer = torch.optim.Adam(self.discriminator.parameters(), lr=3e-8)
+            self.encoder_optimizer = th.optim.Adam(self.encoder.parameters(), lr=3e-8)
+            self.discriminator_optimizer = th.optim.Adam(self.discriminator.parameters(), lr=3e-8)
 
             # loss
             self.domain_shift_loss = nn.BCELoss()
 
             # data
             self.simulation_data = AdapterVisualImgData()
-            self.simulation_data.ctr = 0
 
-        self.action_free_replay_buffer = ReplayBuffer(
-            buffer_size=buffer_size, observation_space=env.observation_space,
-            action_space=env.action_space, device='cpu', n_envs=1,
-            optimize_memory_usage=optimize_memory_usage, handle_timeout_termination=False)
+        if self.env_name == 'acrobot_continuous':
+            self.action_free_replay_buffer = ReplayBuffer(
+                buffer_size=buffer_size, observation_space=env.observation_space,
+                action_space=env.action_space, device='cpu', n_envs=1,
+                optimize_memory_usage=optimize_memory_usage, handle_timeout_termination=False)
+        else:
+            self.action_free_replay_buffer = \
+                ActionFreeReplayBuffer(observation=self.simulation_data.observation,
+                                       observation_img=self.simulation_data.observation_img,
+                                       observation_img_raw=self.simulation_data.observation_img_raw,
+                                       done=self.simulation_data.done)
+
 
     def fill_action_free_buffer(self, human_data=False, num_steps=200000, replay_buffer=None):
         if human_data:
@@ -185,33 +194,17 @@ class RLV(SAC):
                                 infos={'': ''}
                             )
 
-                # Test functionality
-                # counter = 0
-                # for i in range(0, 1500):
-                #     if rew[i] > -1:
-                #         counter += 1
-                # print(counter)
-
-    def set_reward(self, reward_obs):
-        if self.env_name == 'acrobot_continuous':
-            if reward_obs > -1:
-                return 10
-            else:
-                return -1
-        elif self.env_name == 'franca_robot':
-            return 100  # TODO implement reward function for robot in simulation framework
+    def set_reward_acrobot(self, reward_obs):
+        if reward_obs > -1:
+            return 10
         else:
-            # reward for mujoco environments
-            if reward_obs > -1:
-                return 10
-            else:
-                return 0
+            return -1
+
 
     def warmup_inverse_model(self):
         "Loss inverse model:"
         for x in range(0, self.warmup_steps):
             obs_data = self.action_free_replay_buffer.sample(batch_size=self.half_batch_size)
-
             state_obs = obs_data.observations
             target_action = obs_data.actions
             next_state_obs = obs_data.next_observations
@@ -229,47 +222,53 @@ class RLV(SAC):
                 print(f"Steps {x}, Loss: {self.inverse_model_loss.item()}")
 
 
-
-    def train_encoder(self, domain_shift=False, training_steps: int = 500):
-        if domain_shift:
-            input_length = env.observation_space.shape[-1]
-
-            lower_bound = self.simulation_data_ctr * self.half_batch_size
+    def warmup_encoder(self):
+        for x in range(0, self.warmup_steps):
+            lower_bound = np.random.randint(0, high=self.simulation_data.n - self.half_batch_size, size=None, dtype=int)
             upper_bound = lower_bound + self.half_batch_size
 
             observation = self.simulation_data.observation[lower_bound:upper_bound]
             observation_img = self.simulation_data.observation_img[lower_bound:upper_bound]
 
-            # TODO: get paired data (raw and noisy images)
+            output_encoder = self.encoder.forward(observation_img.float())
 
-            for i in range(training_steps):
-                # zero the gradients on each iteration
-                self.generator_optimizer.zero_grad()
+            loss = self.encoder.criterion(output_encoder, observation)
 
-                encoder_input, encoder_target, true_labels = observation_img, observation, th.ones(self.half_batch_size)
+            self.encoder_optimizer.zero_grad()
+            loss.backward()
+            self.encoder_optimizer.step()
 
-                encoder_output = self.encoder(encoder_input)
+            if x % 100 == 0:
+                print(f"Steps {x}, Encoder Loss: {loss.item()}")
 
-                # Train the generator
-                generator_discriminator_out = self.discriminator(encoder_output)
-                # TODO: check if paired loss is added here or below
-                generator_loss = self.loss(generator_discriminator_out, true_labels) \
-                                 + th.abs((self.encoder(s_int) - self.encoder(s_obs))).pow(2)
-                generator_loss.backward()
-                generator_optimizer.step()
 
-                # Train the discriminator on the true/generated data
-                self.discriminator_optimizer.zero_grad()
-                true_discriminator_out = self.discriminator(encoder_target)
-                true_discriminator_loss = self.loss(true_discriminator_out, true_labels)
+    def train_encoder(self, observation, observation_img, observation_img_raw):
+        self.generator_optimizer.zero_grad()
 
-                # add .detach() here think about this
-                generator_discriminator_out = self.discriminator(encoder_output.detach())
-                generator_discriminator_loss = self.loss(generator_discriminator_out, th.zeros(self.half_batch_size))
-                #TODO: check if paired loss is added here or above
-                discriminator_loss = (true_discriminator_loss + generator_discriminator_loss) / 2
-                discriminator_loss.backward()
-                discriminator_optimizer.step()
+        encoder_input, encoder_target, true_labels = observation_img, observation, th.ones(self.half_batch_size)
+        encoder_output = self.encoder(encoder_input)
+
+        paired_loss = th.cdist(self.encoder(observation_img_raw), self.encoder(observation_img), p=2.0) ** 2
+
+        # Train the generator
+        generator_discriminator_out = self.discriminator(encoder_output)
+        # TODO: check if paired loss is added here or below
+        generator_loss = self.loss(generator_discriminator_out, true_labels)
+        generator_loss.backward()
+        generator_optimizer.step()
+
+        # Train the discriminator on the true/generated data
+        self.discriminator_optimizer.zero_grad()
+        true_discriminator_out = self.discriminator(encoder_target)
+        true_discriminator_loss = self.loss(true_discriminator_out, true_labels)
+
+        # add .detach() here think about this
+        generator_discriminator_out = self.discriminator(encoder_output.detach())
+        generator_discriminator_loss = self.loss(generator_discriminator_out, th.zeros(self.half_batch_size))
+        #TODO: check if paired loss is added here or above
+        discriminator_loss = ((true_discriminator_loss + generator_discriminator_loss) / 2 + paired_loss) * 0.001
+        discriminator_loss.backward()
+        discriminator_optimizer.step()
 
 
     def train(self, gradient_steps: int, batch_size: int = 64) -> None:
@@ -286,35 +285,83 @@ class RLV(SAC):
         actor_losses, critic_losses = [], []
 
         for gradient_step in range(gradient_steps):
-            obs_data = self.action_free_replay_buffer.sample(batch_size=self.half_batch_size)
-            state_obs = obs_data.observations
-            target_action = obs_data.actions
-            next_state_obs = obs_data.next_observations
-            done_obs = obs_data.dones
-
-            # get predicted action from inverse model
-            input_inverse_model = th.cat((state_obs.detach(), next_state_obs.detach()), dim=1)
-            action_obs = self.inverse_model.forward(input_inverse_model)
-
-            # Compute inverse model loss
-            self.inverse_model_loss = self.inverse_model.criterion(action_obs, target_action)
-
-            # set rewards for observational data
-            reward_obs = th.zeros(self.half_batch_size, 1)
-            for i in range(0, self.half_batch_size):
-                reward_obs[i] = self.set_reward(reward_obs=reward_obs[i])
 
             # get robot data - sample from replay pool from the SAC model
             data_int = self.replay_buffer.sample(self.half_batch_size, env=self._vec_normalize_env)
 
-            # replace the data used in SAC for each gradient steps by observational plus robot data
-            replay_data = ReplayBufferSamples(
-                observations=th.cat((data_int.observations, state_obs.detach()), dim=0),
-                actions=th.cat((data_int.actions, action_obs.detach()), dim=0),
-                next_observations=th.cat((data_int.next_observations, next_state_obs.detach()), dim=0),
-                dones=th.cat((data_int.dones, done_obs.detach()), dim=0),
-                rewards=th.cat((data_int.rewards, reward_obs.detach()), dim=0)
-            )
+            if self.env_name == 'acrobot_continuous':
+                obs_data = self.action_free_replay_buffer.sample(batch_size=self.half_batch_size)
+                state_obs = obs_data.observations
+                target_action = obs_data.actions
+                next_state_obs = obs_data.next_observations
+                done_obs = obs_data.dones
+
+                # get predicted action from inverse model
+                input_inverse_model = th.cat((state_obs.detach(), next_state_obs.detach()), dim=1)
+                predicted_action_int = self.inverse_model.forward(input_inverse_model)
+
+                # Compute inverse model loss
+                self.inverse_model_loss = self.inverse_model.criterion(predicted_action_int, target_action)
+
+                # set rewards for observational data
+                reward_obs = th.zeros(self.half_batch_size, 1)
+                for i in range(0, self.half_batch_size):
+                    reward_obs[i] = self.set_reward_acrobot(reward_obs=reward_obs[i])
+
+                # replace the data used in SAC for each gradient steps by observational plus robot data
+                replay_data = ReplayBufferSamples(
+                    observations=th.cat((data_int.observations, state_obs.detach()), dim=0),
+                    actions=th.cat((data_int.actions, action_obs.detach()), dim=0),
+                    next_observations=th.cat((data_int.next_observations, next_state_obs.detach()), dim=0),
+                    dones=th.cat((data_int.dones, done_obs.detach()), dim=0),
+                    rewards=th.cat((data_int.rewards, reward_obs.detach()), dim=0)
+                )
+
+            else:
+                state_obs, state_obs_img, state_obs_img_raw, next_state_obs, next_state_obs_img, \
+                next_state_obs_img_raw, done_obs = self.action_free_replay_buffer.sample(batch_size=self.half_batch_size)
+                # get
+                obs_int, action_int, next_obs_int, reward_int, done_int = data_int.observations, data_int.actions, \
+                                                                          data_int.next_observations, data_int.rewards, \
+                                                                          data_int.dones
+
+
+                # Get domain invariant encodings
+                h_int, h_int_next = self.encoder.forward(obs_int), self.encoder.forward(next_obs_int)
+
+                h_obs, h_obs_next = self.encoder.forward(state_obs_img), self.encoder.forward(next_state_obs_img)
+
+
+                #Inverse Model
+
+                # inputs
+                int_input_inverse_model = th.cat((h_int, h_int_next), dim=1)
+                obs_input_inverse_model = th.cat((h_obs, h_obs_next), dim=1)
+
+                #outputs
+                predicted_int_action = self.inverse_model.forward(int_input_inverse_model)
+                predicted_obs_action = self.inverse_model.forward(obs_input_inverse_model)
+
+                self.inverse_model_loss = self.inverse_model.criterion(predicted_int_action, action_int)
+
+
+                # set rewards for observational data
+                reward_obs = th.zeros(self.half_batch_size, 1)
+
+                for i in range(0,self.half_batch_size):
+                    if done_obs[i]:
+                        reward_obs[i] = 10
+
+
+
+                # replace the data used in SAC for each gradient steps by observational plus robot data
+                replay_data = ReplayBufferSamples(
+                    observations=th.cat((h_int, h_obs), dim=0),
+                    actions=th.cat((action_int, predicted_obs_action), dim=0),
+                    next_observations=th.cat((h_int_next, h_obs_next), dim=0),
+                    dones=th.cat((done_int, done_obs), dim=0),
+                    rewards=th.cat((reward_int, reward_obs), dim=0)
+                )
 
             # We need to sample because `log_std` may have changed between two gradient steps
             if self.use_sde:
@@ -368,11 +415,6 @@ class RLV(SAC):
             critic_loss.backward()
             self.critic.optimizer.step()
 
-            # Optimize Inverse Model
-            self.inverse_model.optimizer.zero_grad()
-            self.inverse_model_loss.backward()
-            self.inverse_model.optimizer.step()
-
             # Compute actor loss
             # Alternative: actor_loss = th.mean(log_prob - qf1_pi)
             # Mean over all critic networks
@@ -389,6 +431,14 @@ class RLV(SAC):
             # Update target networks
             if gradient_step % self.target_update_interval == 0:
                 polyak_update(self.critic.parameters(), self.critic_target.parameters(), self.tau)
+
+            # Optimize Inverse Model
+            self.inverse_model.optimizer.zero_grad()
+            self.inverse_model_loss.backward()
+            self.inverse_model.optimizer.step()
+
+            if not self.env_name == 'acrobot_continuous':
+                self.train_encoder(observation=state_obs, observation_img=state_obs_img, observation_img_raw=state_obs_img_raw)
 
         self._n_updates += gradient_steps
 

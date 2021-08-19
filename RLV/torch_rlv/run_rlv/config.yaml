@@ -41,7 +41,7 @@ params:
   gamma: 0.99
   train_freq: 1
   gradient_steps: 1
-  total_steps: 5000
+  total_steps: 30000
   project_name: 'sac_experiment'
   run_name: 'test_sac'
   log_dir: '/tmp/gym/'
@@ -59,14 +59,14 @@ params:
 
 
 ---
-name: "rlv_ex"
+name: "sac_ex"
 path: "./output/sac/"
 repetitions: 1   # repeat 8 times
 
 # Experiment Parameters
 params:
   env_name: "visual_pusher"
-  algo_name: 'sac'
+  algo_name: 'rlv'
   policy: 'MlpPolicy'
 
 
