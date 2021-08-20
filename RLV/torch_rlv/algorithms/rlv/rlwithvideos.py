@@ -54,10 +54,8 @@ class RlWithVideos(SoftActorCritic):
                          optimize_memory_usage=optimize_memory_usage, ent_coef=ent_coef,
                          target_update_interval=target_update_interval, target_entropy=target_entropy, use_sde=use_sde,
                          sde_sample_freq=sde_sample_freq, use_sde_at_warmup=use_sde_at_warmup,
-                         initial_exploration_steps=1000, domain_shift=True,
-                         domain_shift_generator_weight=0.01, domain_shift_discriminator_weight=0.01,
-                         create_eval_env=create_eval_env, tensorboard_log=tensorboard_log,
-                         paired_loss_scale=1.0, verbose=verbose, seed=seed, device=device,
+                         initial_exploration_steps=1000, domain_shift=True, create_eval_env=create_eval_env,
+                         tensorboard_log=tensorboard_log, verbose=verbose, seed=seed, device=device,
                          _init_setup_model=_init_setup_model, wandb_log=wandb_log)
 
         if wandb_log:

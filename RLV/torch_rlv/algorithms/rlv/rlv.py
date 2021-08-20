@@ -256,7 +256,6 @@ class RLV(SAC):
         actor_losses, critic_losses = [], []
 
         for gradient_step in range(gradient_steps):
-
             # get robot data - sample from replay pool from the SAC model
             data_int = self.replay_buffer.sample(self.half_batch_size, env=self._vec_normalize_env)
 
@@ -277,7 +276,7 @@ class RLV(SAC):
                 # set rewards for observational data
                 reward_obs = th.zeros(self.half_batch_size, 1)
                 for i in range(0, self.half_batch_size):
-                    reward_obs[i] = set_reward_acrobot(reward_obs=reward_obs[i])
+                    reward_obs[i] = self.set_reward_acrobot(reward_obs=reward_obs[i])
 
                 # replace the data used in SAC for each gradient steps by observational plus robot data
                 replay_data = ReplayBufferSamples(
@@ -297,7 +296,7 @@ class RLV(SAC):
                                                                           data_int.dones
 
                 # Get domain invariant encodings
-                h_int, h_int_next = self.encoder.forward(obs_int), self.encoder.forward(next_obs_int)
+                h_int, h_int_next = self.encoder.forward(state_obs_img_raw), self.encoder.forward(next_state_obs_img_raw)
                 h_obs, h_obs_next = self.encoder.forward(state_obs_img), self.encoder.forward(next_state_obs_img)
 
                 #Inverse Model
@@ -309,6 +308,7 @@ class RLV(SAC):
                 predicted_int_action = self.inverse_model.forward(int_input_inverse_model)
                 predicted_obs_action = self.inverse_model.forward(obs_input_inverse_model)
 
+
                 self.inverse_model_loss = self.inverse_model.criterion(predicted_int_action, action_int)
 
                 # set rewards for observational data
@@ -318,6 +318,8 @@ class RLV(SAC):
                     if done_obs[i]:
                         reward_obs[i] = 10
 
+                print(done_int.shape)
+
                 # replace the data used in SAC for each gradient steps by observational plus robot data
                 replay_data = ReplayBufferSamples(
                     observations=th.cat((h_int, h_obs), dim=0),
@@ -326,6 +328,7 @@ class RLV(SAC):
                     dones=th.cat((done_int, done_obs), dim=0),
                     rewards=th.cat((reward_int, reward_obs), dim=0)
                 )
+
 
             # We need to sample because `log_std` may have changed between two gradient steps
             if self.use_sde:
@@ -379,6 +382,11 @@ class RLV(SAC):
             critic_loss.backward()
             self.critic.optimizer.step()
 
+            # Optimize Inverse Model
+            self.inverse_model.optimizer.zero_grad()
+            self.inverse_model_loss.backward()
+            self.inverse_model.optimizer.step()
+
             # Compute actor loss
             # Alternative: actor_loss = th.mean(log_prob - qf1_pi)
             # Mean over all critic networks
@@ -396,10 +404,6 @@ class RLV(SAC):
             if gradient_step % self.target_update_interval == 0:
                 polyak_update(self.critic.parameters(), self.critic_target.parameters(), self.tau)
 
-            # Optimize Inverse Model
-            self.inverse_model.optimizer.zero_grad()
-            self.inverse_model_loss.backward()
-            self.inverse_model.optimizer.step()
 
             if not self.env_name == 'acrobot_continuous':
                 self.train_encoder(observation=state_obs, observation_img=state_obs_img, observation_img_raw=state_obs_img_raw)
