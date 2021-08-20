@@ -166,12 +166,12 @@ class RLV(SAC):
                                 infos={'': ''}
                             )
 
-    def set_reward_acrobot(self, reward_obs):
+    @staticmethod
+    def set_reward_acrobot(reward_obs):
         if reward_obs > -1:
             return 10
         else:
             return -1
-
 
     def warmup_inverse_model(self):
         "Loss inverse model:"
@@ -192,7 +192,6 @@ class RLV(SAC):
 
             if x % 100 == 0:
                 print(f"Steps {x}, Loss: {self.inverse_model_loss.item()}")
-
 
     def warmup_encoder(self):
         for x in range(0, self.warmup_steps):
@@ -278,7 +277,7 @@ class RLV(SAC):
                 # set rewards for observational data
                 reward_obs = th.zeros(self.half_batch_size, 1)
                 for i in range(0, self.half_batch_size):
-                    reward_obs[i] = self.set_reward_acrobot(reward_obs=reward_obs[i])
+                    reward_obs[i] = set_reward_acrobot(reward_obs=reward_obs[i])
 
                 # replace the data used in SAC for each gradient steps by observational plus robot data
                 replay_data = ReplayBufferSamples(
@@ -292,20 +291,16 @@ class RLV(SAC):
             else:
                 state_obs, state_obs_img, state_obs_img_raw, next_state_obs, next_state_obs_img, \
                 next_state_obs_img_raw, done_obs = self.action_free_replay_buffer.sample(batch_size=self.half_batch_size)
-                # get
+
                 obs_int, action_int, next_obs_int, reward_int, done_int = data_int.observations, data_int.actions, \
                                                                           data_int.next_observations, data_int.rewards, \
                                                                           data_int.dones
 
-
                 # Get domain invariant encodings
                 h_int, h_int_next = self.encoder.forward(obs_int), self.encoder.forward(next_obs_int)
-
                 h_obs, h_obs_next = self.encoder.forward(state_obs_img), self.encoder.forward(next_state_obs_img)
 
-
                 #Inverse Model
-
                 # inputs
                 int_input_inverse_model = th.cat((h_int, h_int_next), dim=1)
                 obs_input_inverse_model = th.cat((h_obs, h_obs_next), dim=1)
@@ -316,15 +311,12 @@ class RLV(SAC):
 
                 self.inverse_model_loss = self.inverse_model.criterion(predicted_int_action, action_int)
 
-
                 # set rewards for observational data
                 reward_obs = th.zeros(self.half_batch_size, 1)
 
                 for i in range(0,self.half_batch_size):
                     if done_obs[i]:
                         reward_obs[i] = 10
-
-
 
                 # replace the data used in SAC for each gradient steps by observational plus robot data
                 replay_data = ReplayBufferSamples(

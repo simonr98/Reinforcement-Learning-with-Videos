@@ -2,14 +2,11 @@ import io
 import pathlib
 import time
 import warnings
-import pickle
-from typing import Any, Dict, List, Optional, Tuple, Type, Union
-
 import gym
 import numpy as np
 import torch as th
-import matplotlib.pyplot as plt
 
+from typing import Any, Dict, List, Optional, Tuple, Type, Union
 from RLV.torch_rlv.algorithms.base_class import BaseAlgorithm
 from RLV.torch_rlv.buffer.buffers import DictReplayBuffer, ReplayBuffer
 from stable_baselines3.common.callbacks import BaseCallback
