@@ -1,4 +1,5 @@
 import os
+import pickle
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -48,12 +49,54 @@ class SoftActorCritic:
             self.wandb_logger = wandb.init(project=project_name, config=self.config, name=run_name, reinit=True,
                                            settings=wandb.Settings(start_method="thread"))
 
-    def run(self, plot=False):
+        self.dataset = {'observation': [], 'observation_img': [], 'observation_img_raw': [], 'action': [],
+                        'next_observation': [], 'reward': [],  'done': []}
+
+        self.paired_dataset = {'raw_img': [], 'filtered_img': []}
+
+    def run(self, plot=False, make_dataset=False):
         callback = SaveOnBestTrainingRewardCallback(check_freq=1000, log_dir=self.log_dir, wandb_log=self.wandb_log)
         self.model.learn(total_timesteps=self.total_steps, callback=callback)
+        self.save_data_of_best_model(2000)
 
         if plot:
             plot_results(self.log_dir)
+
+    def save_data_of_best_model(self, num_steps):
+        obs = self.env.reset()
+        for i in range(num_steps):
+            action, state_ = self.model.predict(obs)
+
+            obs_img = self.env.get_image()
+            obs_img_raw = self.env.get_raw_image()
+
+            next_obs, reward, done, _ = self.env.step(action)
+
+            self.dataset['observation'].append(obs)
+            self.dataset['observation_img'].append(obs_img)
+            self.dataset['observation_img_raw'].append(obs_img_raw)
+            self.dataset['action'].append(action)
+            self.dataset['next_observation'].append(next_obs)
+            self.dataset['reward'].append(reward)
+            self.dataset['done'].append(done)
+
+            if i % 10 == 0:
+                self.paired_dataset['raw_img'].append(obs_img_raw)
+                self.paired_dataset['filtered_img'].append(obs_img)
+
+            if not done:
+                obs = next_obs
+            else:
+                obs = self.env.reset()
+
+        with open(f'../data/pusher_simulated_data/pusher_{self.total_steps}_SAC_steps'
+                  f'_{num_steps}_samples.pickle', 'w+b') as df:
+            pickle.dump(self.dataset, df)
+
+        with open(f'../data/pusher_simulated_data/pusher_paired_{self.total_steps}_SAC_steps'
+                  f'_{num_steps}_samples.pickle', 'w+b') as df:
+            pickle.dump(self.paired_dataset, df)
+
 
     def get_env(self):
         return self.model.get_env()

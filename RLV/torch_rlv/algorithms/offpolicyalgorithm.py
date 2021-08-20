@@ -158,9 +158,6 @@ class OffPolicyAlgorithm(BaseAlgorithm):
         # For gSDE only
         self.use_sde_at_warmup = use_sde_at_warmup
 
-        self.dataset = {'observation': [], 'observation_img': [], 'observation_img_raw': [], 'action': [],
-                        'next_observation': [], 'reward': [],  'done': []}
-        self.ctr = 0
 
     def _convert_train_freq(self) -> None:
         """
@@ -564,38 +561,14 @@ class OffPolicyAlgorithm(BaseAlgorithm):
                     # Sample a new noise matrix
                     self.actor.reset_noise()
 
-                if not self.env_name == 'acrobot_continuous':
-                    obs = env._obs_from_buf()
-                    obs_img = self.env.get_image()
-                    obs_img_raw = self.env.get_raw_image()
-                else:
+                if self.env_name == 'acrobot_continuous':
                     env.render()
-
 
                 # Select action randomly or according to policy
                 action, buffer_action = self._sample_action(learning_starts, action_noise)
 
                 # Rescale and perform action
                 new_obs, reward, done, infos = env.step(action)
-
-                if not self.env_name == 'acrobot_continuous':
-                    # create dataset with observation_images
-                    self.dataset['observation'].append(obs)
-                    self.dataset['observation_img'].append(obs_img)
-                    self.dataset['observation_img_raw'].append(obs_img_raw)
-                    self.dataset['action'].append(action)
-                    self.dataset['next_observation'].append(new_obs)
-                    self.dataset['reward'].append(reward)
-                    self.dataset['done'].append(done)
-                    self.ctr += 1
-
-                    if self.ctr % (self.total_steps//10) == 0:
-                        with open(f'../data/pusher_simulated_data/simulated_pusher_data'
-                                  f'_{self.total_steps}_steps.pickle', 'w+b') as temp:
-                            pickle.dump(self.dataset, temp)
-                        self.dataset = {'observation': [], 'observation_img': [], 'observation_img_raw': [], 'action': [],
-                        'next_observation': [], 'reward': [],  'done': []}
-
 
                 self.num_timesteps += 1
                 episode_timesteps += 1
