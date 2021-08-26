@@ -21,7 +21,7 @@ class ActionFreeReplayBuffer():
         self.observation_img_raw = self.observation_img_raw[:-1]
 
     def sample(self, batch_size=256):
-        lower_bound = np.random.randint(0, high=self.n, size=None, dtype=int)
+        lower_bound = np.random.randint(0, high=self.n - batch_size, size=None, dtype=int)
         upper_bound = lower_bound + batch_size
 
         return self.observation[lower_bound:upper_bound], self.observation_img[lower_bound:upper_bound], \

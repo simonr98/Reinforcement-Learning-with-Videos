@@ -182,7 +182,7 @@ class RLV(SAC):
             next_state_obs = obs_data.next_observations
 
             input_inverse_model = th.cat((state_obs, next_state_obs), dim=1)
-            action_obs = self.inverse_model.forward(input_inverse_model)
+            action_obs = self.inverse_model(input_inverse_model)
 
             self.inverse_model_loss = self.inverse_model.criterion(action_obs, target_action)
 
@@ -201,7 +201,7 @@ class RLV(SAC):
             observation = self.simulation_data.observation[lower_bound:upper_bound]
             observation_img = self.simulation_data.observation_img[lower_bound:upper_bound]
 
-            output_encoder = self.encoder.forward(observation_img.float())
+            output_encoder = self.encoder(observation_img.float())
 
             loss = self.encoder.criterion(output_encoder, observation)
 
@@ -216,13 +216,15 @@ class RLV(SAC):
     def train_encoder(self, observation, observation_img, observation_img_raw):
         self.encoder_optimizer.zero_grad()
 
-        encoder_input, encoder_target, true_labels = observation_img, observation, th.ones(self.half_batch_size)
-        encoder_output = self.encoder.forward(encoder_input)
+        encoder_input, encoder_target, true_labels = observation_img, observation, th.ones(self.half_batch_size,1)
+        encoder_output = self.encoder(encoder_input.detach())
 
-        paired_loss = th.cdist(self.encoder.forward(observation_img_raw), self.encoder.forward(observation_img), p=2.0) ** 2
+        paired_loss = th.nn.MSELoss()(self.encoder(observation_img_raw.detach()),
+                                      self.encoder(observation_img.detach()))
+        # th.dist(self.encoder.forward(observation_img_raw), self.encoder.forward(observation_img), 2) ** 2
 
         # Train the generator
-        generator_discriminator_out = self.discriminator.forward(encoder_output)
+        generator_discriminator_out = self.discriminator(encoder_output.detach())
         # TODO: check if paired loss is added here or below
         generator_loss = self.domain_shift_loss(generator_discriminator_out, true_labels)
         generator_loss.backward()
@@ -230,14 +232,15 @@ class RLV(SAC):
 
         # Train the discriminator on the true/generated data
         self.discriminator_optimizer.zero_grad()
-        true_discriminator_out = self.discriminator.forward(encoder_target)
+        true_discriminator_out = self.discriminator(encoder_target.float())
         true_discriminator_loss = self.domain_shift_loss(true_discriminator_out, true_labels)
 
         # add .detach() here think about this
-        generator_discriminator_out = self.discriminator.forward(encoder_output.detach())
-        generator_discriminator_loss = self.domain_shift_loss(generator_discriminator_out, th.zeros(self.half_batch_size))
+        generator_discriminator_out = self.discriminator(encoder_output.detach())
+        generator_discriminator_loss = self.domain_shift_loss(generator_discriminator_out, th.zeros(self.half_batch_size, 1))
         #TODO: check if paired loss is added here or above
-        discriminator_loss = ((true_discriminator_loss + generator_discriminator_loss) / 2 + paired_loss) * 0.001
+        discriminator_loss = (true_discriminator_loss + generator_discriminator_loss) / 2
+        #discriminator_loss = ((true_discriminator_loss + generator_discriminator_loss) / 2 + paired_loss) * 0.001
         discriminator_loss.backward()
         self.discriminator_optimizer.step()
 
@@ -268,7 +271,7 @@ class RLV(SAC):
 
                 # get predicted action from inverse model
                 input_inverse_model = th.cat((state_obs.detach(), next_state_obs.detach()), dim=1)
-                action_obs = self.inverse_model.forward(input_inverse_model)
+                action_obs = self.inverse_model(input_inverse_model)
 
                 # Compute inverse model loss
                 self.inverse_model_loss = self.inverse_model.criterion(action_obs, target_action)
@@ -294,10 +297,9 @@ class RLV(SAC):
                 obs_int, action_int, next_obs_int, reward_int, done_int = data_int.observations, data_int.actions, \
                                                                           data_int.next_observations, data_int.rewards, \
                                                                           data_int.dones
-
                 # Get domain invariant encodings
-                h_int, h_int_next = self.encoder.forward(state_obs_img_raw), self.encoder.forward(next_state_obs_img_raw)
-                h_obs, h_obs_next = self.encoder.forward(state_obs_img), self.encoder.forward(next_state_obs_img)
+                h_int, h_int_next = self.encoder(state_obs_img_raw), self.encoder(next_state_obs_img_raw)
+                h_obs, h_obs_next = self.encoder(state_obs_img), self.encoder(next_state_obs_img)
 
                 #Inverse Model
                 # inputs
@@ -305,28 +307,23 @@ class RLV(SAC):
                 obs_input_inverse_model = th.cat((h_obs, h_obs_next), dim=1)
 
                 #outputs
-                predicted_int_action = self.inverse_model.forward(int_input_inverse_model)
-                predicted_obs_action = self.inverse_model.forward(obs_input_inverse_model)
-
+                predicted_int_action = self.inverse_model(int_input_inverse_model.detach())
+                predicted_obs_action = self.inverse_model(obs_input_inverse_model.detach())
 
                 self.inverse_model_loss = self.inverse_model.criterion(predicted_int_action, action_int)
-
-                # set rewards for observational data
                 reward_obs = th.zeros(self.half_batch_size, 1)
 
                 for i in range(0,self.half_batch_size):
                     if done_obs[i]:
                         reward_obs[i] = 10
 
-                print(done_int.shape)
-
                 # replace the data used in SAC for each gradient steps by observational plus robot data
                 replay_data = ReplayBufferSamples(
-                    observations=th.cat((h_int, h_obs), dim=0),
-                    actions=th.cat((action_int, predicted_obs_action), dim=0),
-                    next_observations=th.cat((h_int_next, h_obs_next), dim=0),
-                    dones=th.cat((done_int, done_obs), dim=0),
-                    rewards=th.cat((reward_int, reward_obs), dim=0)
+                    observations=th.cat((h_int.detach(), h_obs.detach()), dim=0),
+                    actions=th.cat((action_int, predicted_obs_action.detach()), dim=0),
+                    next_observations=th.cat((h_int_next.detach(), h_obs_next.detach()), dim=0),
+                    dones=th.cat((done_int, done_obs.detach()), dim=0),
+                    rewards=th.cat((reward_int, reward_obs.detach()), dim=0)
                 )
 
 
@@ -423,6 +420,9 @@ class RLV(SAC):
         self.logger.record("train/actor_loss", np.mean(actor_losses))
         self.logger.record("train/critic_loss", np.mean(critic_losses))
         self.logger.record("train/inverse_model_loss", self.inverse_model_loss.item())
+
+        if self.domain_shift:
+            self.logger.record("train/domain_shift_loss", self.domain_shift_loss.item())
 
         if len(ent_coef_losses) > 0:
             self.logger.record("train/ent_coef_loss", np.mean(ent_coef_losses))

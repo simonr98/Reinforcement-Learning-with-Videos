@@ -32,7 +32,7 @@ class DiscriminatorNetwork(nn.Module):
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = F.relu(self.fc3(x))
-        q = T.Sigmoid(self.q(x))
+        q = T.sigmoid(self.q(x))
         return q
 
     def save_checkpoint(self):

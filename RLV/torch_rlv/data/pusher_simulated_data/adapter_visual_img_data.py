@@ -32,6 +32,6 @@ if __name__ == '__main__':
     print(a.done.shape)
 
 
-    x = np.reshape((a.observation_img[0]).detach().numpy(), (120, 120, 3))
-    x = Image.fromarray(x)
-    x.show()
+    # x = np.reshape((a.observation_img[0]).detach().numpy(), (120, 120, 3))
+    # x = Image.fromarray(x)
+    # x.show()
