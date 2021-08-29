@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.animation as animation
+import imageio
 
 
 def plot_learning_curve(x, scores, figure_file):
@@ -44,3 +45,7 @@ def animate_env_obs(imgs, name):
         interval=1000 / fps,  # in ms
     )
     anim.save(name+'.mp4', fps=fps, extra_args=['-vcodec', 'libx264'])
+
+
+def create_gif(name, images):
+    imageio.mimsave(name +'.gif', [np.array(img) for img in images], fps=25)
