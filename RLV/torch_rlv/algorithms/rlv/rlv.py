@@ -76,11 +76,9 @@ class RLV(SAC):
         self.initial_exploration_steps = initial_exploration_steps
         self.n_actions = env.action_space.shape[-1]
 
-        self.inverse_model = InverseModelNetwork(
-            beta=beta_inverse_model,
-            input_dims=env.observation_space.shape[-1] * 2,
-            output_dims=env.action_space.shape[-1],
-            fc1_dims=64, fc2_dims=64, fc3_dims=64)
+        self.inverse_model = InverseModelNetwork(beta=beta_inverse_model, input_dims=env.observation_space.shape[-1] * 2,
+                                                 output_dims=env.action_space.shape[-1], fc1_dims=64, fc2_dims=64,
+                                                 fc3_dims=64)
 
         if self.domain_shift:
             self.encoder = ConvNet(output_dims=self.env.observation_space.shape[-1])

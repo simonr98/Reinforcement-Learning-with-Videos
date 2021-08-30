@@ -4,7 +4,6 @@ import os
 
 import numpy as np
 import matplotlib.pyplot as plt
-import wandb
 from RLV.torch_rlv.algorithms.sac.sac import SAC
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.results_plotter import load_results, ts2xy
@@ -25,11 +24,14 @@ class RlWithVideos(SoftActorCritic):
                  _init_setup_model=True, project_name='sac_experiment', run_name='test_sac',
                  train_sac_action_free_steps=25000, human_data=False, log_dir=None, train_sac=False, total_steps=1000):
 
-        super().__init__(policy, env_name, config, wandb_log, env, learning_rate, buffer_size, learning_starts,
-                         batch_size, tau, gamma, train_freq, gradient_steps, optimize_memory_usage, ent_coef,
-                         target_update_interval, target_entropy, use_sde, sde_sample_freq, use_sde_at_warmup,
-                         tensorboard_log, create_eval_env, policy_kwargs, verbose, seed, device, _init_setup_model,
-                         project_name, run_name)
+        super().__init__(policy=policy, env_name=env_name, env=env, learning_rate=learning_rate, buffer_size=buffer_size,
+                         learning_starts=learning_starts, batch_size=batch_size, tau=tau, gamma=gamma,
+                         train_freq=train_freq, gradient_steps=gradient_steps, optimize_memory_usage=optimize_memory_usage,
+                         ent_coef=ent_coef, target_update_interval=target_update_interval, target_entropy=target_entropy,
+                         use_sde=use_sde, sde_sample_freq=sde_sample_freq, use_sde_at_warmup=use_sde_at_warmup,
+                         tensorboard_log=tensorboard_log, create_eval_env=create_eval_env, policy_kwargs=policy_kwargs,
+                         verbose=verbose, seed=seed, device=device, _init_setup_model=_init_setup_model,
+                         project_name=project_name, run_name=run_name, wandb_log=wandb_log)
 
         action_noise = NormalActionNoise(mean=np.zeros(self.n_actions), sigma=0.1 * np.ones(self.n_actions))
         self.train_sac_action_free_steps = train_sac_action_free_steps
@@ -37,6 +39,12 @@ class RlWithVideos(SoftActorCritic):
         self.log_dir = log_dir
         self.train_sac = train_sac
         self.total_steps
+        self.env_name=env_name
+
+        if self.env_name == 'acrobot_continuous':
+            domain_shift = False
+        else:
+            domain_shift = True
 
         self.sac = SAC(policy, env, env_name=env_name, total_steps=total_steps, learning_rate=learning_rate, buffer_size=buffer_size,
                        learning_starts=learning_starts, batch_size=batch_size, tau=tau, gamma=gamma,
@@ -54,16 +62,9 @@ class RlWithVideos(SoftActorCritic):
                          optimize_memory_usage=optimize_memory_usage, ent_coef=ent_coef,
                          target_update_interval=target_update_interval, target_entropy=target_entropy, use_sde=use_sde,
                          sde_sample_freq=sde_sample_freq, use_sde_at_warmup=use_sde_at_warmup,
-                         initial_exploration_steps=1000, domain_shift=True, create_eval_env=create_eval_env,
+                         initial_exploration_steps=1000, domain_shift=domain_shift, create_eval_env=create_eval_env,
                          tensorboard_log=tensorboard_log, verbose=verbose, seed=seed, device=device,
                          _init_setup_model=_init_setup_model, wandb_log=wandb_log)
-
-        if wandb_log:
-            self.wandb_logger = wandb.init(project=project_name,
-                                           config=self.config,
-                                           name=run_name,
-                                           reinit=True,  # allow things to be run multiple times
-                                           settings=wandb.Settings(start_method="thread"))
 
     def run(self, total_timesteps=int(1000000), plot=False):
         if self.env_name == "acrobot_continuous":
@@ -85,7 +86,7 @@ class RlWithVideos(SoftActorCritic):
             pass
             #self.model.warmup_encoder()
 
-        callback = SaveOnBestTrainingRewardCallback(check_freq=1000, log_dir=self.log_dir, wandb_log=self.wandb_log)
+        callback = SaveOnBestTrainingRewardCallback(check_freq=1000, log_dir=self.log_dir)
         self.model.learn(total_timesteps=total_timesteps, callback=callback, log_interval=4)
         self.total_timesteps =+ total_timesteps
 

@@ -5,6 +5,7 @@ import warnings
 import gym
 import numpy as np
 import torch as th
+import wandb
 
 from typing import Any, Dict, List, Optional, Tuple, Type, Union
 from RLV.torch_rlv.algorithms.base_class import BaseAlgorithm
@@ -104,6 +105,9 @@ class OffPolicyAlgorithm(BaseAlgorithm):
         sde_support: bool = True,
         remove_time_limit_termination: bool = False,
         supported_action_spaces: Optional[Tuple[gym.spaces.Space, ...]] = None,
+        wandb_log = False,
+        wandb_logging_parameters = {},
+        wandb_config = {}
     ):
 
         super(OffPolicyAlgorithm, self).__init__(
@@ -129,6 +133,7 @@ class OffPolicyAlgorithm(BaseAlgorithm):
         self.tau = tau
         self.gamma = gamma
         self.gradient_steps = gradient_steps
+        self.train_freq = train_freq
         self.action_noise = action_noise
         self.optimize_memory_usage = optimize_memory_usage
         self.replay_buffer_class = replay_buffer_class
@@ -139,6 +144,13 @@ class OffPolicyAlgorithm(BaseAlgorithm):
 
         self.env_name = env_name
         self.total_steps = total_steps
+
+        self.wandb_log = wandb_log
+        self.wandb_config = wandb_config
+        self.wandb_logging_parameters = wandb_logging_parameters
+
+        if wandb_log:
+            self.setup_wandb()
 
         # Remove terminations (dones) that are due to time limit
         # see https://github.com/hill-a/stable-baselines/issues/863
@@ -154,6 +166,24 @@ class OffPolicyAlgorithm(BaseAlgorithm):
             self.policy_kwargs["use_sde"] = self.use_sde
         # For gSDE only
         self.use_sde_at_warmup = use_sde_at_warmup
+
+    def setup_wandb(self):
+        self.wandb_config.update({
+            'env_name': self.env_name,
+            'policy': self.policy,
+            'total_steps': self.total_steps,
+            'buffer_size': self.buffer_size,
+            'sac_learning_rate': self.learning_rate,
+            'gamma': self.gamma,
+            'tau': self.tau,
+            'train_freq': self.train_freq,
+            'gradient_steps': self.gradient_steps,
+            'batch_size': self.batch_size,
+        })
+
+        wandb.init(project=self.wandb_config['project_name'], config=self.wandb_config,
+                   name=self.wandb_config['run_name'], reinit=True,
+                   settings=wandb.Settings(start_method="thread"))
 
 
     def _convert_train_freq(self) -> None:
@@ -445,6 +475,17 @@ class OffPolicyAlgorithm(BaseAlgorithm):
         # Pass the number of timesteps for tensorboard
         self.logger.dump(step=self.num_timesteps)
 
+        if self.wandb_log:
+            self.wandb_logging_parameters.update({
+                "Num timesteps": self.num_timesteps,
+                "rew_mean": safe_mean([ep_info["r"] for ep_info in self.ep_info_buffer]),
+                'len_mean': safe_mean([ep_info["l"] for ep_info in self.ep_info_buffer]),
+                'fps': fps,
+                'time_elapsed': time_elapsed,
+                'total_timesteps': self.num_timesteps,
+            })
+            wandb.log(self.wandb_logging_parameters)
+
     def _on_step(self) -> None:
         """
         Method called after each step in the environment.
@@ -558,8 +599,8 @@ class OffPolicyAlgorithm(BaseAlgorithm):
                     # Sample a new noise matrix
                     self.actor.reset_noise()
 
-                if self.env_name == 'acrobot_continuous':
-                    env.render()
+                # if self.env_name == 'acrobot_continuous':
+                #     env.render()
 
                 # Select action randomly or according to policy
                 action, buffer_action = self._sample_action(learning_starts, action_noise)

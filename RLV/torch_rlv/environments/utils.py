@@ -9,4 +9,4 @@ def get_environment(name):
         return gym.make('AcrobotContinuous100-v1')
 
     if name == "visual_pusher":
-        return PushMocapCtrl(render=False, max_steps=500, nsubsteps=12, random_env=False)
+        return PushMocapCtrl(render=False, max_steps=2000, nsubsteps=12, random_env=False)

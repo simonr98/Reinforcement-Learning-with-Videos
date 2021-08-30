@@ -101,8 +101,9 @@ class SAC(OffPolicyAlgorithm):
         seed: Optional[int] = None,
         device: Union[th.device, str] = "auto",
         _init_setup_model: bool = True,
+        wandb_log = False,
+        wandb_config = {}
     ):
-
         super(SAC, self).__init__(
             policy,
             env,
@@ -118,6 +119,8 @@ class SAC(OffPolicyAlgorithm):
             train_freq,
             gradient_steps,
             action_noise,
+            wandb_log=wandb_log,
+            wandb_config = wandb_config,
             replay_buffer_class=replay_buffer_class,
             replay_buffer_kwargs=replay_buffer_kwargs,
             policy_kwargs=policy_kwargs,
@@ -272,6 +275,16 @@ class SAC(OffPolicyAlgorithm):
         self.logger.record("train/ent_coef", np.mean(ent_coefs))
         self.logger.record("train/actor_loss", np.mean(actor_losses))
         self.logger.record("train/critic_loss", np.mean(critic_losses))
+
+        if self.wandb_log:
+            self.wandb_logging_parameters.update({
+                'n_updates': self._n_updates,
+                'ent_coef': np.mean(ent_coefs),
+                'actor_loss': np.mean(actor_losses),
+                'critic_loss': np.mean(critic_losses)
+            })
+
+
         if len(ent_coef_losses) > 0:
             self.logger.record("train/ent_coef_loss", np.mean(ent_coef_losses))
 
