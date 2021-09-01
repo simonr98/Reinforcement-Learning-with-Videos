@@ -35,7 +35,6 @@ params:
   tau: 0.005
   acrobot_human_data: True
   train_sac: False
-  train_sac_action_free_steps: 975000
   gamma: 0.99
   train_freq: 1
   gradient_steps: 1
@@ -69,14 +68,14 @@ params:
 
 ---
 name: "sac"
-path: "./output/rlv/"
+path: "./output/sac/"
 repetitions: 1   # repeat 8 times
 
 # Experiment Parameters
 params:
-  project_name: 'rlv_acrobot_August_30'
+  project_name: 'sac_test'
   env_name: "acrobot_continuous"
-  algo_name: 'rlv'
+  algo_name: 'sac'
   policy: 'MlpPolicy'
 
 #---

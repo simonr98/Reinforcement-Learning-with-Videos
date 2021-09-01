@@ -25,61 +25,26 @@ class RLV(SAC):
                  env=None, learning_rate=0.0003, buffer_size=1000000, learning_starts=1000, batch_size=256,
                  tau=0.005, gamma=0.99, train_freq=1, gradient_steps=1, optimize_memory_usage=False, ent_coef='auto',
                  target_update_interval=10, target_entropy='auto', initial_exploration_steps=1000, wandb_log=False,
-                 domain_shift=True, action_noise: Optional[ActionNoise] = None,
-                 replay_buffer_class: Optional[ReplayBuffer] = None,
-                 replay_buffer_kwargs: Optional[Dict[str, Any]] = None, use_sde: bool = False, sde_sample_freq: int = -1,
-                 use_sde_at_warmup: bool = False, tensorboard_log: Optional[str] = None, create_eval_env: bool = False,
-                 policy_kwargs: Dict[str, Any] = None, verbose: int = 0,
-                 seed: Optional[int] = None,
-                 device: Union[th.device, str] = "auto",
-                 _init_setup_model: bool = True,
-                 ):
+                 domain_shift=True, device: Union[th.device, str] = "auto", _init_setup_model: bool = True):
         super(RLV, self).__init__(
-            policy=policy,
-            env=env,
-            env_name=env_name,
-            total_steps = total_steps,
-            learning_rate=learning_rate,
-            buffer_size=buffer_size,
-            learning_starts=learning_starts,
-            batch_size=(batch_size * 2),
-            tau=tau,
-            gamma=gamma,
-            train_freq=train_freq,
-            target_entropy=target_entropy,
-            gradient_steps=gradient_steps,
-            action_noise=action_noise,
-            replay_buffer_class=replay_buffer_class,
-            replay_buffer_kwargs=replay_buffer_kwargs,
-            policy_kwargs=policy_kwargs,
-            tensorboard_log=tensorboard_log,
-            verbose=verbose,
-            device=device,
-            create_eval_env=create_eval_env,
-            seed=seed,
-            use_sde=use_sde,
-            sde_sample_freq=sde_sample_freq,
-            use_sde_at_warmup=use_sde_at_warmup,
-            optimize_memory_usage=optimize_memory_usage,
-            ent_coef=ent_coef
-        )
+            env_name, total_steps, warmup_steps, beta_inverse_model, policy, env, learning_rate, buffer_size,
+            learning_starts, batch_size, tau, gamma, train_freq, gradient_steps, optimize_memory_usage, ent_coef,
+            target_update_interval, target_entropy, initial_exploration_steps, wandb_log,
+            domain_shift, device, _init_setup_model)
 
         self.half_batch_size = batch_size
-
         self.target_update_interval = target_update_interval
+
         self.wandb_log = wandb_log
+
         self.inverse_model_loss = 0
         self.warmup_steps = warmup_steps
         self.beta_inverse_model = beta_inverse_model
-        self.domain_shift = domain_shift
-
-        self.initial_exploration_steps = initial_exploration_steps
-        self.n_actions = env.action_space.shape[-1]
-
         self.inverse_model = InverseModelNetwork(beta=beta_inverse_model, input_dims=env.observation_space.shape[-1] * 2,
                                                  output_dims=env.action_space.shape[-1], fc1_dims=64, fc2_dims=64,
                                                  fc3_dims=64)
 
+        self.domain_shift = domain_shift
         if self.domain_shift:
             self.encoder = ConvNet(output_dims=self.env.observation_space.shape[-1])
             self.discriminator = DiscriminatorNetwork(input_dims=self.env.observation_space.shape[-1],
@@ -100,11 +65,9 @@ class RLV(SAC):
                 action_space=env.action_space, device='cpu', n_envs=1,
                 optimize_memory_usage=optimize_memory_usage, handle_timeout_termination=False)
         else:
-            self.action_free_replay_buffer = \
-                ActionFreeReplayBuffer(observation=self.simulation_data.observation,
-                                       observation_img=self.simulation_data.observation_img,
-                                       observation_img_raw=self.simulation_data.observation_img_raw,
-                                       done=self.simulation_data.done)
+            self.action_free_replay_buffer = ActionFreeReplayBuffer(
+                observation=self.simulation_data.observation, observation_img=self.simulation_data.observation_img,
+                observation_img_raw=self.simulation_data.observation_img_raw, done=self.simulation_data.done)
 
 
     def fill_action_free_buffer(self, human_data=False, num_steps=200000, replay_buffer=None):
@@ -117,52 +80,10 @@ class RLV(SAC):
             terminals = data.terminals
 
             for i in range(0, observations.shape[0]):
-                self.action_free_replay_buffer.add(
-                    obs=observations[i],
-                    next_obs=next_observations[i],
-                    action=actions[i],
-                    reward=rewards[i],
-                    done=terminals[i],
-                    infos={'': ''}
-                )
+                self.action_free_replay_buffer.add(obs=observations[i], next_obs=next_observations[i], action=actions[i],
+                                                   reward=rewards[i], done=terminals[i], infos={'': ''})
         else:
-            if replay_buffer is not None:
-                print('Training done')
-
-                data = {'observations': replay_buffer.observations, 'actions': replay_buffer.actions,
-                        'next_observations': replay_buffer.next_observations, 'rewards': replay_buffer.rewards,
-                        'terminals': replay_buffer.dones}
-
-                with open(f"../data/sac_data/data_from_sac_trained_for_{num_steps}_steps.pickle", 'wb') \
-                        as handle:
-                    pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-                self.action_free_replay_buffer = replay_buffer
-            else:
-                print('Use Data generated by training SAC for action free buffer')
-                data = AdapterSAC()
-                observations = data.observations
-                next_observations = data.next_observations
-                actions = data.actions
-                rewards = data.rewards
-                terminals = data.terminals
-
-                ind = [0]
-                for i in range(0, observations.shape[0]):
-                    if int(terminals[i][0]) == 1:
-                        ind.append(i)
-                    if int(terminals[i][0]) == 1 and rewards[i] > -1.0:
-                        start = ind[-2] + 1
-
-                        for k in range(0, i - start + 1):
-                            self.action_free_replay_buffer.add(
-                                obs=observations[start+k],
-                                next_obs=next_observations[start+k],
-                                action=actions[start+k],
-                                reward=rewards[start+k],
-                                done=terminals[start+k],
-                                infos={'': ''}
-                            )
+            print('not implemented yet')
 
     @staticmethod
     def set_reward_acrobot(reward_obs):
@@ -172,8 +93,7 @@ class RLV(SAC):
             return -1
 
     def warmup_inverse_model(self):
-        "Loss inverse model:"
-        for x in range(0, self.warmup_steps):
+        for step in range(0, self.warmup_steps):
             obs_data = self.action_free_replay_buffer.sample(batch_size=self.half_batch_size)
             state_obs = obs_data.observations
             target_action = obs_data.actions
@@ -184,15 +104,16 @@ class RLV(SAC):
 
             self.inverse_model_loss = self.inverse_model.criterion(action_obs, target_action)
 
+            # optimize inverse model
             self.inverse_model.optimizer.zero_grad()
             self.inverse_model_loss.backward()
             self.inverse_model.optimizer.step()
 
-            if x % 100 == 0:
-                print(f"Steps {x}, Loss: {self.inverse_model_loss.item()}")
+            if step % 100 == 0:
+                print(f"Steps {step}, Loss: {self.inverse_model_loss.item()}")
 
     def warmup_encoder(self):
-        for x in range(0, self.warmup_steps):
+        for step in range(0, self.warmup_steps):
             lower_bound = np.random.randint(0, high=self.simulation_data.n - self.half_batch_size, size=None, dtype=int)
             upper_bound = lower_bound + self.half_batch_size
 
@@ -207,8 +128,8 @@ class RLV(SAC):
             loss.backward()
             self.encoder_optimizer.step()
 
-            if x % 100 == 0:
-                print(f"Steps {x}, Encoder Loss: {loss.item()}")
+            if step % 100 == 0:
+                print(f"Steps {step}, Encoder Loss: {loss.item()}")
 
 
     def train_encoder(self, observation, observation_img, observation_img_raw):
@@ -223,7 +144,6 @@ class RLV(SAC):
 
         # Train the generator
         generator_discriminator_out = self.discriminator(encoder_output.detach())
-        # TODO: check if paired loss is added here or below
         generator_loss = self.domain_shift_loss(generator_discriminator_out, true_labels)
         generator_loss.backward()
         self.encoder_optimizer.step()
@@ -233,12 +153,11 @@ class RLV(SAC):
         true_discriminator_out = self.discriminator(encoder_target.float())
         true_discriminator_loss = self.domain_shift_loss(true_discriminator_out, true_labels)
 
-        # add .detach() here think about this
         generator_discriminator_out = self.discriminator(encoder_output.detach())
         generator_discriminator_loss = self.domain_shift_loss(generator_discriminator_out, th.zeros(self.half_batch_size, 1))
-        #TODO: check if paired loss is added here or above
-        discriminator_loss = (true_discriminator_loss + generator_discriminator_loss) / 2
-        #discriminator_loss = ((true_discriminator_loss + generator_discriminator_loss) / 2 + paired_loss) * 0.001
+
+        #discriminator_loss = (true_discriminator_loss + generator_discriminator_loss) / 2 #Todo
+        discriminator_loss = ((true_discriminator_loss + generator_discriminator_loss) / 2 + paired_loss) * 0.001
         discriminator_loss.backward()
         self.discriminator_optimizer.step()
 
@@ -285,9 +204,9 @@ class RLV(SAC):
                     actions=th.cat((data_int.actions, action_obs.detach()), dim=0),
                     next_observations=th.cat((data_int.next_observations, next_state_obs.detach()), dim=0),
                     dones=th.cat((data_int.dones, done_obs.detach()), dim=0),
-                    rewards=th.cat((data_int.rewards, reward_obs.detach()), dim=0)
-                )
+                    rewards=th.cat((data_int.rewards, reward_obs.detach()), dim=0))
 
+            # visual_pusher case
             else:
                 state_obs, state_obs_img, state_obs_img_raw, next_state_obs, next_state_obs_img, \
                 next_state_obs_img_raw, done_obs = self.action_free_replay_buffer.sample(batch_size=self.half_batch_size)
@@ -335,9 +254,6 @@ class RLV(SAC):
 
             ent_coef_loss = None
             if self.ent_coef_optimizer is not None:
-                # Important: detach the variable from the graph
-                # so we don't change it with other losses
-                # see https://github.com/rail-berkeley/softlearning/issues/60
                 ent_coef = th.exp(self.log_ent_coef.detach())
                 ent_coef_loss = -(self.log_ent_coef * (log_prob + self.target_entropy).detach()).mean()
                 ent_coef_losses.append(ent_coef_loss.item())
@@ -346,8 +262,7 @@ class RLV(SAC):
 
             ent_coefs.append(ent_coef.item())
 
-            # Optimize entropy coefficient, also called
-            # entropy temperature or alpha in the paper
+            # Optimize entropy coefficient, also called entropy temperature or alpha in the paper
             if ent_coef_loss is not None:
                 self.ent_coef_optimizer.zero_grad()
                 ent_coef_loss.backward()
@@ -364,8 +279,7 @@ class RLV(SAC):
                 # td error + entropy term
                 target_q_values = replay_data.rewards + (1 - replay_data.dones) * self.gamma * next_q_values
 
-            # Get current Q-values estimates for each critic network
-            # using action from the replay buffer
+            # Get current Q-values estimates for each critic network - using action from the replay buffer
             current_q_values = self.critic(replay_data.observations, replay_data.actions)
 
             # Compute critic loss
@@ -383,8 +297,6 @@ class RLV(SAC):
             self.inverse_model.optimizer.step()
 
             # Compute actor loss
-            # Alternative: actor_loss = th.mean(log_prob - qf1_pi)
-            # Mean over all critic networks
             q_values_pi = th.cat(self.critic.forward(replay_data.observations, actions_pi), dim=1)
             min_qf_pi, _ = th.min(q_values_pi, dim=1, keepdim=True)
             actor_loss = (ent_coef * log_prob - min_qf_pi).mean()
@@ -399,12 +311,12 @@ class RLV(SAC):
             if gradient_step % self.target_update_interval == 0:
                 polyak_update(self.critic.parameters(), self.critic_target.parameters(), self.tau)
 
-
             if not self.env_name == 'acrobot_continuous':
                 self.train_encoder(observation=state_obs, observation_img=state_obs_img, observation_img_raw=state_obs_img_raw)
 
         self._n_updates += gradient_steps
 
+        # logging
         if self.wandb_log:
             logging_parameters = {
                 "train/n_updates": self._n_updates,
@@ -419,13 +331,19 @@ class RLV(SAC):
         self.logger.record("train/critic_loss", np.mean(critic_losses))
         self.logger.record("train/inverse_model_loss", self.inverse_model_loss.item())
 
+        if self.wandb_log:
+            self.wandb_logging_parameters.update({
+                'inverse_model_loss': self.inverse_model_loss.item(),
+                'n_updates': self._n_updates,
+                'ent_coef': np.mean(ent_coefs),
+                'actor_loss': np.mean(actor_losses),
+                'critic_loss': np.mean(critic_losses)
+            })
+
         if self.domain_shift:
             self.logger.record("train/domain_shift_loss", self.domain_shift_loss.item())
 
         if len(ent_coef_losses) > 0:
             self.logger.record("train/ent_coef_loss", np.mean(ent_coef_losses))
             if self.wandb_log:
-                logging_parameters["train/ent_coef_loss"] = np.mean(ent_coef_losses)
-
-        if self.wandb_log:
-            wandb.log(logging_parameters)
+                self.logging_parameters.update({"train/ent_coef_loss":np.mean(ent_coef_losses)})

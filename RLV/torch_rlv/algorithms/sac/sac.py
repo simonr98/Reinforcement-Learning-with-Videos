@@ -71,75 +71,29 @@ class SAC(OffPolicyAlgorithm):
     """
 
     def __init__(
-        self,
-        policy: Union[str, Type[SACPolicy]],
-        env: Union[GymEnv, str],
-        env_name,
-        total_steps,
-        learning_rate: Union[float, Schedule] = 3e-4,
-        buffer_size: int = 1000000,  # 1e6
-        learning_starts: int = 100,
-        batch_size: int = 256,
-        tau: float = 0.005,
-        gamma: float = 0.99,
-        train_freq: Union[int, Tuple[int, str]] = 1,
-        gradient_steps: int = 1,
-        action_noise: Optional[ActionNoise] = None,
-        replay_buffer_class: Optional[ReplayBuffer] = None,
-        replay_buffer_kwargs: Optional[Dict[str, Any]] = None,
-        optimize_memory_usage: bool = False,
-        ent_coef: Union[str, float] = "auto",
-        target_update_interval: int = 1,
-        target_entropy: Union[str, float] = "auto",
-        use_sde: bool = False,
-        sde_sample_freq: int = -1,
-        use_sde_at_warmup: bool = False,
-        tensorboard_log: Optional[str] = None,
-        create_eval_env: bool = False,
-        policy_kwargs: Dict[str, Any] = None,
-        verbose: int = 0,
-        seed: Optional[int] = None,
-        device: Union[th.device, str] = "auto",
-        _init_setup_model: bool = True,
-        wandb_log = False,
-        wandb_config = {}
-    ):
+        self, policy: Union[str, Type[SACPolicy]], env: Union[GymEnv, str], env_name, total_steps, learning_rate = 3e-4,
+        buffer_size: int = 1000000, learning_starts: int = 100, batch_size: int = 256, tau: float = 0.005,
+        gamma: float = 0.99, train_freq: Union[int, Tuple[int, str]] = 1, gradient_steps: int = 1,
+        action_noise: Optional[ActionNoise] = None, replay_buffer_class: Optional[ReplayBuffer] = None,
+        replay_buffer_kwargs: Optional[Dict[str, Any]] = None, optimize_memory_usage: bool = False,
+        ent_coef: Union[str, float] = "auto", target_update_interval: int = 1, target_entropy: Union[str, float] = "auto",
+        use_sde: bool = False, sde_sample_freq: int = -1, use_sde_at_warmup: bool = False,
+        tensorboard_log: Optional[str] = None, create_eval_env: bool = False, policy_kwargs: Dict[str, Any] = None,
+        verbose: int = 0, seed: Optional[int] = None, device: Union[th.device, str] = "auto",
+        _init_setup_model: bool = True, wandb_log = False, wandb_config = {}):
         super(SAC, self).__init__(
-            policy,
-            env,
-            env_name,
-            total_steps,
-            SACPolicy,
-            learning_rate,
-            buffer_size,
-            learning_starts,
-            batch_size,
-            tau,
-            gamma,
-            train_freq,
-            gradient_steps,
-            action_noise,
-            wandb_log=wandb_log,
-            wandb_config = wandb_config,
-            replay_buffer_class=replay_buffer_class,
-            replay_buffer_kwargs=replay_buffer_kwargs,
-            policy_kwargs=policy_kwargs,
-            tensorboard_log=tensorboard_log,
-            verbose=verbose,
-            device=device,
-            create_eval_env=create_eval_env,
-            seed=seed,
-            use_sde=use_sde,
-            sde_sample_freq=sde_sample_freq,
-            use_sde_at_warmup=use_sde_at_warmup,
-            optimize_memory_usage=optimize_memory_usage,
-            supported_action_spaces=(gym.spaces.Box),
-        )
+            policy, env, env_name, total_steps, SACPolicy, learning_rate, buffer_size, learning_starts, batch_size,
+            tau, gamma, train_freq, gradient_steps, action_noise, wandb_log=wandb_log, wandb_config = wandb_config,
+            replay_buffer_class=replay_buffer_class, replay_buffer_kwargs=replay_buffer_kwargs,
+            policy_kwargs=policy_kwargs, tensorboard_log=tensorboard_log, verbose=verbose, device=device,
+            create_eval_env=create_eval_env, seed=seed, use_sde=use_sde, sde_sample_freq=sde_sample_freq,
+            use_sde_at_warmup=use_sde_at_warmup, optimize_memory_usage=optimize_memory_usage,
+            supported_action_spaces=(gym.spaces.Box))
 
         self.target_entropy = target_entropy
         self.log_ent_coef = None  # type: Optional[th.Tensor]
-        # Entropy coefficient / Entropy temperature
-        # Inverse of the reward scale
+
+        # Entropy coefficient / Entropy temperature - Inverse of the reward scale
         self.ent_coef = ent_coef
         self.target_update_interval = target_update_interval
         self.ent_coef_optimizer = None
@@ -160,8 +114,6 @@ class SAC(OffPolicyAlgorithm):
             self.target_entropy = float(self.target_entropy)
 
         # The entropy coefficient or entropy can be learned automatically
-        # see Automating Entropy Adjustment for Maximum Entropy RL section
-        # of https://arxiv.org/abs/1812.05905
         if isinstance(self.ent_coef, str) and self.ent_coef.startswith("auto"):
             # Default initial value of ent_coef when learned
             init_value = 1.0
@@ -174,9 +126,7 @@ class SAC(OffPolicyAlgorithm):
             self.log_ent_coef = th.log(th.ones(1, device=self.device) * init_value).requires_grad_(True)
             self.ent_coef_optimizer = th.optim.Adam([self.log_ent_coef], lr=self.lr_schedule(1))
         else:
-            # Force conversion to float
-            # this will throw an error if a malformed string (different from 'auto')
-            # is passed
+            # Force conversion to float - this will throw an error if a malformed string (different from 'auto')
             self.ent_coef_tensor = th.tensor(float(self.ent_coef)).to(self.device)
 
     def _create_aliases(self) -> None:
@@ -210,9 +160,6 @@ class SAC(OffPolicyAlgorithm):
 
             ent_coef_loss = None
             if self.ent_coef_optimizer is not None:
-                # Important: detach the variable from the graph
-                # so we don't change it with other losses
-                # see https://github.com/rail-berkeley/softlearning/issues/60
                 ent_coef = th.exp(self.log_ent_coef.detach())
                 ent_coef_loss = -(self.log_ent_coef * (log_prob + self.target_entropy).detach()).mean()
                 ent_coef_losses.append(ent_coef_loss.item())
@@ -221,8 +168,7 @@ class SAC(OffPolicyAlgorithm):
 
             ent_coefs.append(ent_coef.item())
 
-            # Optimize entropy coefficient, also called
-            # entropy temperature or alpha in the paper
+            # Optimize entropy coefficient, also called - entropy temperature or alpha in the paper
             if ent_coef_loss is not None:
                 self.ent_coef_optimizer.zero_grad()
                 ent_coef_loss.backward()
@@ -239,8 +185,7 @@ class SAC(OffPolicyAlgorithm):
                 # td error + entropy term
                 target_q_values = replay_data.rewards + (1 - replay_data.dones) * self.gamma * next_q_values
 
-            # Get current Q-values estimates for each critic network
-            # using action from the replay buffer
+            # Get current Q-values estimates for each critic network - using action from the replay buffer
             current_q_values = self.critic(replay_data.observations, replay_data.actions)
 
             # Compute critic loss
@@ -253,8 +198,6 @@ class SAC(OffPolicyAlgorithm):
             self.critic.optimizer.step()
 
             # Compute actor loss
-            # Alternative: actor_loss = th.mean(log_prob - qf1_pi)
-            # Mean over all critic networks
             q_values_pi = th.cat(self.critic.forward(replay_data.observations, actions_pi), dim=1)
             min_qf_pi, _ = th.min(q_values_pi, dim=1, keepdim=True)
             actor_loss = (ent_coef * log_prob - min_qf_pi).mean()

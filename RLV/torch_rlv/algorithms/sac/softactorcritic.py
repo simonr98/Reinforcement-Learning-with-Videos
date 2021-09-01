@@ -36,8 +36,9 @@ class SoftActorCritic:
                          sde_sample_freq=sde_sample_freq, use_sde_at_warmup=use_sde_at_warmup,
                          tensorboard_log=tensorboard_log, create_eval_env=create_eval_env,
                          verbose=verbose, seed=seed, device=device, _init_setup_model=_init_setup_model,
-                         wandb_log=wandb_log, wandb_config = {'project_name': project_name,
-                                                              'run_name': run_name})
+                         wandb_log=wandb_log, algo_name='sac',
+                         wandb_config = {'project_name': project_name,
+                                         'run_name': run_name})
 
         self.dataset = {'observation': [], 'observation_img': [], 'observation_img_raw': [], 'action': [],
                         'next_observation': [], 'reward': [],  'done': []}
@@ -49,6 +50,7 @@ class SoftActorCritic:
         callback = SaveOnBestTrainingRewardCallback(check_freq=1000, log_dir=self.log_dir)
         self.model.learn(total_timesteps=self.total_steps, callback=callback)
         self.save_data_of_best_model(2000)
+        self.model.save(f'/sac_models/trained_for_{self.total_steps}')
 
         if plot:
             plot_results(self.log_dir)
