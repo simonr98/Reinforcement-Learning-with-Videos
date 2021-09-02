@@ -12,7 +12,6 @@ from RLV.torch_rlv.algorithms.sac.sac import SAC
 from stable_baselines3.common.noise import ActionNoise
 from RLV.torch_rlv.utils.type_aliases import ReplayBufferSamples
 from RLV.torch_rlv.data.acrobot_human_data.adapter_acrobot import AcrobotAdapter
-from RLV.torch_rlv.data.acrobot_sac_data.sac_adapter_acrobot import AdapterSAC
 from stable_baselines3.common.utils import polyak_update
 from RLV.torch_rlv.models.convnet import ConvNet
 from RLV.torch_rlv.models.discriminator import DiscriminatorNetwork

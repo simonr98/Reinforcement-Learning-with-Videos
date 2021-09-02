@@ -39,56 +39,37 @@ params:
   train_freq: 1
   gradient_steps: 1
   total_steps: 3000
-  project_name: 'final_experiment_rlv'
-  run_name: 'test_sac'
+  project_name: 'unknown_project'
+  run_name: 'test'
   log_dir: '../output/tmp/gym/'
-
-#---
-#name: "sac_ex"
-#path: "../output/sac/"
-#repetitions: 5   # repeat 8 times
-#
-## Experiment Parameters
-#params:
-#  env_name: "acrobot_continuous"
-#  algo_name: 'sac'
-#  policy: 'MlpPolicy'
-
-
-#---
-#name: "final_experiment_rlv"
-#path: "../output/sac/"
-#repetitions: 1   # repeat 8 times
-#
-## Experiment Parameters
-#params:
-#  env_name: "visual_pusher"
-#  algo_name: 'sac'
-#  policy: 'MlpPolicy'
 
 ---
 name: "sac"
 path: "../output/rlv/"
-repetitions: 1   # repeat 8 times
+repetitions: 2   # repeat 8 times
 
 # Experiment Parameters
 params:
-  project_name: 'sac_test'
+  total_steps: 1000000
+  project_name: 'acrobot_sac'
+  run_name: 'one_million_steps_acrobot'
   env_name: "acrobot_continuous"
-  algo_name: 'rlv'
+  algo_name: 'sac'
   policy: 'MlpPolicy'
 
-#---
-#name: "rlv"
-#path: "../output/rlv/"
-#repetitions: 3   # repeat 8 times
-#
-## Experiment Parameters
-#params:
-#  project_name: 'rlv_acrobot_August_30'
-#  env_name: "acrobot_continuous"
-#  algo_name: 'rlv'
-#  policy: 'MlpPolicy'
+---
+name: "sac"
+path: "../output/rlv/"
+repetitions: 2   # repeat 8 times
+
+# Experiment Parameters
+params:
+  total_steps: 1000000
+  project_name: 'visual_pusher_sac'
+  run_name: 'one_million_steps_pusher'
+  env_name: "visual_pusher"
+  algo_name: 'sac'
+  policy: 'MlpPolicy'
 
 
 
