@@ -75,7 +75,7 @@ repetitions: 1   # repeat 8 times
 params:
   project_name: 'sac_test'
   env_name: "acrobot_continuous"
-  algo_name: 'sac'
+  algo_name: 'rlv'
   policy: 'MlpPolicy'
 
 #---

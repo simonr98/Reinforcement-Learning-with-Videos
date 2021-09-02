@@ -34,7 +34,6 @@ class RlWithVideos(SoftActorCritic):
 
         action_noise = NormalActionNoise(mean=np.zeros(self.n_actions), sigma=0.1 * np.ones(self.n_actions))
 
-        self.train_sac_action_free_steps = train_sac_action_free_steps
         self.human_data = human_data
         self.log_dir = log_dir
         self.total_steps = total_steps
@@ -47,13 +46,10 @@ class RlWithVideos(SoftActorCritic):
         self.model = RLV(warmup_steps=500, total_steps=total_steps, beta_inverse_model=learning_rate_inverse_model, env_name=env_name,
                          policy=policy, env=self.env, learning_rate=learning_rate, buffer_size=buffer_size,
                          learning_starts=learning_starts, batch_size=batch_size, tau=tau, gamma=gamma,
-                         train_freq=train_freq, gradient_steps=gradient_steps, action_noise=action_noise,
-                         optimize_memory_usage=optimize_memory_usage, ent_coef=ent_coef,
-                         target_update_interval=target_update_interval, target_entropy=target_entropy, use_sde=use_sde,
-                         sde_sample_freq=sde_sample_freq, use_sde_at_warmup=use_sde_at_warmup,
-                         initial_exploration_steps=1000, domain_shift=domain_shift, create_eval_env=create_eval_env,
-                         tensorboard_log=tensorboard_log, verbose=verbose, seed=seed, device=device,
-                         _init_setup_model=_init_setup_model, wandb_log=wandb_log)
+                         train_freq=train_freq, gradient_steps=gradient_steps, optimize_memory_usage=optimize_memory_usage,
+                         ent_coef=ent_coef, target_update_interval=target_update_interval, target_entropy=target_entropy,
+                         domain_shift=domain_shift, device=device, _init_setup_model=_init_setup_model, wandb_log=wandb_log,
+                         wandb_config={'project_name': project_name, 'run_name': run_name, 'algo_name': self.algo_name})
 
     def run(self, total_timesteps=int(1000000), plot=False):
         if self.env_name == "acrobot_continuous":

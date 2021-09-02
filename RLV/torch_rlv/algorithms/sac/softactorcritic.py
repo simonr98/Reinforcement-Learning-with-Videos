@@ -16,13 +16,14 @@ class SoftActorCritic:
                  ent_coef='auto', target_update_interval=1, target_entropy='auto', use_sde=False, sde_sample_freq=- 1,
                  use_sde_at_warmup=False, tensorboard_log=None, create_eval_env=False, policy_kwargs=None, verbose=0,
                  seed=None, device='auto', _init_setup_model=True, project_name='sac_experiment', run_name='test_sac',
-                 log_dir='/tmp/gym/', total_steps=250000, wandb_log=False,):
+                 log_dir='/tmp/gym/', total_steps=250000, wandb_log=False, algo_name='sac'):
 
         self.log_dir = log_dir
         os.makedirs(self.log_dir, exist_ok=True)
 
         self.env = env
         self.env = Monitor(env, self.log_dir)
+        self.algo_name = algo_name
 
         self.total_steps = total_steps
         self.n_actions = env.action_space.shape[-1]
@@ -36,9 +37,8 @@ class SoftActorCritic:
                          sde_sample_freq=sde_sample_freq, use_sde_at_warmup=use_sde_at_warmup,
                          tensorboard_log=tensorboard_log, create_eval_env=create_eval_env,
                          verbose=verbose, seed=seed, device=device, _init_setup_model=_init_setup_model,
-                         wandb_log=wandb_log, algo_name='sac',
-                         wandb_config = {'project_name': project_name,
-                                         'run_name': run_name})
+                         wandb_log=wandb_log, wandb_config = {'project_name': project_name, 'run_name': run_name,
+                                                              'algo_name': self.algo_name})
 
         self.dataset = {'observation': [], 'observation_img': [], 'observation_img_raw': [], 'action': [],
                         'next_observation': [], 'reward': [],  'done': []}

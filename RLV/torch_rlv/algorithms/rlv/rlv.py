@@ -24,18 +24,21 @@ class RLV(SAC):
     def __init__(self, env_name, total_steps, warmup_steps=1500, beta_inverse_model=0.0003, policy='MlpPolicy',
                  env=None, learning_rate=0.0003, buffer_size=1000000, learning_starts=1000, batch_size=256,
                  tau=0.005, gamma=0.99, train_freq=1, gradient_steps=1, optimize_memory_usage=False, ent_coef='auto',
-                 target_update_interval=10, target_entropy='auto', initial_exploration_steps=1000, wandb_log=False,
-                 domain_shift=True, device: Union[th.device, str] = "auto", _init_setup_model: bool = True):
+                 target_update_interval=10, target_entropy='auto', wandb_log=False, project_name='rlv',
+                 domain_shift=True, device: Union[th.device, str] = "auto", _init_setup_model: bool = True,
+                 wandb_logging_parameters={}, wandb_config={}):
         super(RLV, self).__init__(
-            env_name, total_steps, warmup_steps, beta_inverse_model, policy, env, learning_rate, buffer_size,
-            learning_starts, batch_size, tau, gamma, train_freq, gradient_steps, optimize_memory_usage, ent_coef,
-            target_update_interval, target_entropy, initial_exploration_steps, wandb_log,
-            domain_shift, device, _init_setup_model)
+            env_name=env_name, total_steps=total_steps, policy=policy, env=env, learning_rate=learning_rate,
+            buffer_size=buffer_size, learning_starts=learning_starts, batch_size=batch_size, tau=tau, gamma=gamma,
+            train_freq=train_freq, gradient_steps=gradient_steps, optimize_memory_usage=optimize_memory_usage,
+            ent_coef=ent_coef, target_update_interval=target_update_interval, wandb_config=wandb_config,
+            target_entropy=target_entropy, wandb_log=wandb_log, device=device, _init_setup_model=_init_setup_model)
 
         self.half_batch_size = batch_size
         self.target_update_interval = target_update_interval
 
         self.wandb_log = wandb_log
+        self.wandb_logging_parameters = wandb_logging_parameters
 
         self.inverse_model_loss = 0
         self.warmup_steps = warmup_steps
@@ -43,6 +46,7 @@ class RLV(SAC):
         self.inverse_model = InverseModelNetwork(beta=beta_inverse_model, input_dims=env.observation_space.shape[-1] * 2,
                                                  output_dims=env.action_space.shape[-1], fc1_dims=64, fc2_dims=64,
                                                  fc3_dims=64)
+
 
         self.domain_shift = domain_shift
         if self.domain_shift:
@@ -346,4 +350,4 @@ class RLV(SAC):
         if len(ent_coef_losses) > 0:
             self.logger.record("train/ent_coef_loss", np.mean(ent_coef_losses))
             if self.wandb_log:
-                self.logging_parameters.update({"train/ent_coef_loss":np.mean(ent_coef_losses)})
+                self.wandb_logging_parameters.update({"train/ent_coef_loss":np.mean(ent_coef_losses)})

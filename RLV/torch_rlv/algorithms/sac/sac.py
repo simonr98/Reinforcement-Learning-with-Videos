@@ -82,12 +82,13 @@ class SAC(OffPolicyAlgorithm):
         verbose: int = 0, seed: Optional[int] = None, device: Union[th.device, str] = "auto",
         _init_setup_model: bool = True, wandb_log = False, wandb_config = {}):
         super(SAC, self).__init__(
-            policy, env, env_name, total_steps, SACPolicy, learning_rate, buffer_size, learning_starts, batch_size,
-            tau, gamma, train_freq, gradient_steps, action_noise, wandb_log=wandb_log, wandb_config = wandb_config,
-            replay_buffer_class=replay_buffer_class, replay_buffer_kwargs=replay_buffer_kwargs,
-            policy_kwargs=policy_kwargs, tensorboard_log=tensorboard_log, verbose=verbose, device=device,
-            create_eval_env=create_eval_env, seed=seed, use_sde=use_sde, sde_sample_freq=sde_sample_freq,
-            use_sde_at_warmup=use_sde_at_warmup, optimize_memory_usage=optimize_memory_usage,
+            policy=policy, env=env, env_name=env_name, total_steps=total_steps, learning_rate=learning_rate,
+            buffer_size=buffer_size, learning_starts=learning_starts, policy_base=SACPolicy, batch_size=batch_size,
+            tau=tau, gamma=gamma, train_freq=train_freq, gradient_steps=gradient_steps, action_noise=action_noise,
+            wandb_log=wandb_log, wandb_config = wandb_config,replay_buffer_class=replay_buffer_class,
+            replay_buffer_kwargs=replay_buffer_kwargs, policy_kwargs=policy_kwargs, tensorboard_log=tensorboard_log,
+            verbose=verbose, device=device, create_eval_env=create_eval_env, seed=seed, use_sde=use_sde,
+            sde_sample_freq=sde_sample_freq, use_sde_at_warmup=use_sde_at_warmup, optimize_memory_usage=optimize_memory_usage,
             supported_action_spaces=(gym.spaces.Box))
 
         self.target_entropy = target_entropy
