@@ -21,7 +21,7 @@ class RlWithVideos(SoftActorCritic):
                  target_update_interval=1, target_entropy='auto', use_sde=False, sde_sample_freq=- 1,
                  use_sde_at_warmup=False, tensorboard_log=None, create_eval_env=False, policy_kwargs=None, verbose=1,
                  seed=None, device='auto', _init_setup_model=True, project_name='sac_experiment', run_name='test_sac',
-                 human_data=False, log_dir='../tmp/gym/', total_steps=1000, algo_name='rlv'):
+                 human_data=False, log_dir='../output/tmp/gym/', total_steps=1000, algo_name='rlv'):
 
         super().__init__(policy=policy, env_name=env_name, env=env, learning_rate=learning_rate, buffer_size=buffer_size,
                          learning_starts=learning_starts, batch_size=batch_size, tau=tau, gamma=gamma,

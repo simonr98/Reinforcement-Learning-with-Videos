@@ -41,7 +41,7 @@ params:
   total_steps: 3000
   project_name: 'final_experiment_rlv'
   run_name: 'test_sac'
-  log_dir: '/tmp/gym/'
+  log_dir: '../output/tmp/gym/'
 
 #---
 #name: "sac_ex"
