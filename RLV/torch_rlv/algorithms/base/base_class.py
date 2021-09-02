@@ -659,6 +659,8 @@ class BaseAlgorithm(ABC):
         # noinspection PyArgumentList
         model = cls(  # pytype: disable=not-instantiable,wrong-keyword-args
             policy=data["policy_class"],
+            env_name=data['env_name'],
+            total_steps=data['total_steps'],
             env=env,
             device=device,
             _init_setup_model=False,  # pytype: disable=not-instantiable,wrong-keyword-args

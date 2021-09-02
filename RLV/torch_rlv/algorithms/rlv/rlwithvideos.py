@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from RLV.torch_rlv.algorithms.sac.sac import SAC
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.results_plotter import load_results, ts2xy
-from RLV.torch_rlv.buffer.type_aliases import TrainFreq, TrainFrequencyUnit
+from RLV.torch_rlv.utils.type_aliases import TrainFreq, TrainFrequencyUnit
 from stable_baselines3.common.noise import NormalActionNoise
 from stable_baselines3.common.callbacks import BaseCallback
 from RLV.torch_rlv.algorithms.sac.softactorcritic import SaveOnBestTrainingRewardCallback
@@ -19,9 +19,9 @@ class RlWithVideos(SoftActorCritic):
                  learning_rate_inverse_model=0.0003, buffer_size=1000000, learning_starts=1000, batch_size=256,
                  tau=0.005, gamma=0.99, train_freq=1, gradient_steps=1, optimize_memory_usage=False, ent_coef='auto',
                  target_update_interval=1, target_entropy='auto', use_sde=False, sde_sample_freq=- 1,
-                 use_sde_at_warmup=False, tensorboard_log=None, create_eval_env=False, policy_kwargs=None, verbose=0,
+                 use_sde_at_warmup=False, tensorboard_log=None, create_eval_env=False, policy_kwargs=None, verbose=1,
                  seed=None, device='auto', _init_setup_model=True, project_name='sac_experiment', run_name='test_sac',
-                 human_data=False, log_dir=None, total_steps=1000, algo_name='rlv'):
+                 human_data=False, log_dir='../tmp/gym/', total_steps=1000, algo_name='rlv'):
 
         super().__init__(policy=policy, env_name=env_name, env=env, learning_rate=learning_rate, buffer_size=buffer_size,
                          learning_starts=learning_starts, batch_size=batch_size, tau=tau, gamma=gamma,

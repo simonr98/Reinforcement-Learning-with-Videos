@@ -29,7 +29,7 @@ from stable_baselines3.common.torch_layers import (
     NatureCNN,
     create_mlp,
 )
-from RLV.torch_rlv.buffer.type_aliases import Schedule
+from RLV.torch_rlv.utils.type_aliases import Schedule
 from stable_baselines3.common.utils import get_device, is_vectorized_observation, obs_as_tensor
 
 

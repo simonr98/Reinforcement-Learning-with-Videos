@@ -7,7 +7,7 @@ import torch as th
 from gym import spaces
 
 from stable_baselines3.common.preprocessing import get_action_dim, get_obs_shape
-from RLV.torch_rlv.buffer.type_aliases import (
+from RLV.torch_rlv.utils.type_aliases import (
     DictReplayBufferSamples,
     DictRolloutBufferSamples,
     ReplayBufferSamples,

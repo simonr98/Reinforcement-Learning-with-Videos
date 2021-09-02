@@ -8,8 +8,8 @@ import torch as th
 import wandb
 
 from typing import Any, Dict, List, Optional, Tuple, Type, Union
-from RLV.torch_rlv.algorithms.base_class import BaseAlgorithm
-from RLV.torch_rlv.buffer.buffers import DictReplayBuffer, ReplayBuffer
+from RLV.torch_rlv.algorithms.base.base_class import BaseAlgorithm
+from RLV.torch_rlv.utils.buffers import DictReplayBuffer, ReplayBuffer
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.noise import ActionNoise
 from stable_baselines3.common.policies import BasePolicy

@@ -2,7 +2,7 @@ import os
 import gym
 import numpy as np
 from RLV.torch_rlv.algorithms.sac.softactorcritic import plot_results
-from ..environments.utils import get_environment
+from RLV.torch_rlv.environments.utils import get_environment
 from RLV.torch_rlv.algorithms.utils import init_algorithm
 from RLV.torch_rlv.algorithms.sac.sac import SAC
 from RLV.torch_rlv.algorithms.sac.softactorcritic import SaveOnBestTrainingRewardCallback, SoftActorCritic

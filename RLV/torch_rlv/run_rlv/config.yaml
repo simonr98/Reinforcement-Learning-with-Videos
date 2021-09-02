@@ -22,7 +22,7 @@ repetitions: 1  # number of times one set of parameters is run
 
 params:
   # this is where you specify all parameters needed for your experiment.MUST BE DEFAULT
-  #path: "./output/rlv"   # location to save results in
+  #path: "../output/rlv"   # location to save results in
   env_name: 'acrobot_continuous'
   algo_name: 'sac'
   policy: 'MlpPolicy'
@@ -38,14 +38,14 @@ params:
   gamma: 0.99
   train_freq: 1
   gradient_steps: 1
-  total_steps: 1000000
+  total_steps: 3000
   project_name: 'final_experiment_rlv'
   run_name: 'test_sac'
   log_dir: '/tmp/gym/'
 
 #---
 #name: "sac_ex"
-#path: "./output/sac/"
+#path: "../output/sac/"
 #repetitions: 5   # repeat 8 times
 #
 ## Experiment Parameters
@@ -57,7 +57,7 @@ params:
 
 #---
 #name: "final_experiment_rlv"
-#path: "./output/sac/"
+#path: "../output/sac/"
 #repetitions: 1   # repeat 8 times
 #
 ## Experiment Parameters
@@ -68,7 +68,7 @@ params:
 
 ---
 name: "sac"
-path: "./output/sac/"
+path: "../output/rlv/"
 repetitions: 1   # repeat 8 times
 
 # Experiment Parameters
@@ -80,7 +80,7 @@ params:
 
 #---
 #name: "rlv"
-#path: "./output/rlv/"
+#path: "../output/rlv/"
 #repetitions: 3   # repeat 8 times
 #
 ## Experiment Parameters

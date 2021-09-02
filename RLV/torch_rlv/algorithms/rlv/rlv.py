@@ -7,17 +7,17 @@ import pickle
 from typing import Any, Dict, Optional, Union
 from torch.nn import functional as F
 from RLV.torch_rlv.models.inverse_model_network import InverseModelNetwork
-from RLV.torch_rlv.buffer.buffers import ReplayBuffer
+from RLV.torch_rlv.utils.buffers import ReplayBuffer
 from RLV.torch_rlv.algorithms.sac.sac import SAC
 from stable_baselines3.common.noise import ActionNoise
-from RLV.torch_rlv.buffer.type_aliases import ReplayBufferSamples
+from RLV.torch_rlv.utils.type_aliases import ReplayBufferSamples
 from RLV.torch_rlv.data.acrobot_human_data.adapter_acrobot import AcrobotAdapter
 from RLV.torch_rlv.data.acrobot_sac_data.sac_adapter_acrobot import AdapterSAC
 from stable_baselines3.common.utils import polyak_update
 from RLV.torch_rlv.models.convnet import ConvNet
 from RLV.torch_rlv.models.discriminator import DiscriminatorNetwork
 from RLV.torch_rlv.data.pusher_simulated_data.adapter_visual_img_data import AdapterVisualImgData
-from RLV.torch_rlv.buffer.action_free_buffer import ActionFreeReplayBuffer
+from RLV.torch_rlv.utils.action_free_buffer import ActionFreeReplayBuffer
 
 
 class RLV(SAC):
@@ -26,13 +26,14 @@ class RLV(SAC):
                  tau=0.005, gamma=0.99, train_freq=1, gradient_steps=1, optimize_memory_usage=False, ent_coef='auto',
                  target_update_interval=10, target_entropy='auto', wandb_log=False, project_name='rlv',
                  domain_shift=True, device: Union[th.device, str] = "auto", _init_setup_model: bool = True,
-                 wandb_logging_parameters={}, wandb_config={}):
+                 wandb_logging_parameters={}, wandb_config={}, verbose=1):
         super(RLV, self).__init__(
             env_name=env_name, total_steps=total_steps, policy=policy, env=env, learning_rate=learning_rate,
             buffer_size=buffer_size, learning_starts=learning_starts, batch_size=batch_size, tau=tau, gamma=gamma,
             train_freq=train_freq, gradient_steps=gradient_steps, optimize_memory_usage=optimize_memory_usage,
             ent_coef=ent_coef, target_update_interval=target_update_interval, wandb_config=wandb_config,
-            target_entropy=target_entropy, wandb_log=wandb_log, device=device, _init_setup_model=_init_setup_model)
+            target_entropy=target_entropy, wandb_log=wandb_log, device=device, _init_setup_model=_init_setup_model,
+            verbose=verbose)
 
         self.half_batch_size = batch_size
         self.target_update_interval = target_update_interval

@@ -16,12 +16,13 @@ class SoftActorCritic:
                  ent_coef='auto', target_update_interval=1, target_entropy='auto', use_sde=False, sde_sample_freq=- 1,
                  use_sde_at_warmup=False, tensorboard_log=None, create_eval_env=False, policy_kwargs=None, verbose=0,
                  seed=None, device='auto', _init_setup_model=True, project_name='sac_experiment', run_name='test_sac',
-                 log_dir='/tmp/gym/', total_steps=250000, wandb_log=False, algo_name='sac'):
+                 log_dir='../tmp/gym/', total_steps=250000, wandb_log=False, algo_name='sac'):
 
         self.log_dir = log_dir
         os.makedirs(self.log_dir, exist_ok=True)
 
         self.env = env
+        self.env_name = env_name
         self.env = Monitor(env, self.log_dir)
         self.algo_name = algo_name
 
@@ -40,56 +41,13 @@ class SoftActorCritic:
                          wandb_log=wandb_log, wandb_config = {'project_name': project_name, 'run_name': run_name,
                                                               'algo_name': self.algo_name})
 
-        self.dataset = {'observation': [], 'observation_img': [], 'observation_img_raw': [], 'action': [],
-                        'next_observation': [], 'reward': [],  'done': []}
-
-        self.paired_dataset = {'raw_img': [], 'filtered_img': []}
-
-
     def run(self, plot=False, make_dataset=False):
         callback = SaveOnBestTrainingRewardCallback(check_freq=1000, log_dir=self.log_dir)
         self.model.learn(total_timesteps=self.total_steps, callback=callback)
-        self.save_data_of_best_model(2000)
-        self.model.save(f'/sac_models/trained_for_{self.total_steps}')
+        self.model.save(f'../output/{self.algo_name}_models/trained_for_{self.total_steps}')
 
         if plot:
             plot_results(self.log_dir)
-
-    def save_data_of_best_model(self, num_steps):
-        obs = self.env.reset()
-        for i in range(num_steps):
-            action, state_ = self.model.predict(obs)
-
-            obs_img = self.env.get_image()
-            obs_img_raw = self.env.get_raw_image()
-
-            next_obs, reward, done, _ = self.env.step(action)
-
-            self.dataset['observation'].append(obs)
-            self.dataset['observation_img'].append(obs_img)
-            self.dataset['observation_img_raw'].append(obs_img_raw)
-            self.dataset['action'].append(action)
-            self.dataset['next_observation'].append(next_obs)
-            self.dataset['reward'].append(reward)
-            self.dataset['done'].append(done)
-
-            if i % 10 == 0:
-                self.paired_dataset['raw_img'].append(obs_img_raw)
-                self.paired_dataset['filtered_img'].append(obs_img)
-
-            if not done:
-                obs = next_obs
-            else:
-                obs = self.env.reset()
-
-        with open(f'../data/pusher_simulated_data/pusher_{self.total_steps}_SAC_steps'
-                  f'_{num_steps}_samples.pickle', 'w+b') as df:
-            pickle.dump(self.dataset, df)
-
-        with open(f'../data/pusher_simulated_data/pusher_paired_{self.total_steps}_SAC_steps'
-                  f'_{num_steps}_samples.pickle', 'w+b') as df:
-            pickle.dump(self.paired_dataset, df)
-
 
     def get_env(self):
         return self.model.get_env()
