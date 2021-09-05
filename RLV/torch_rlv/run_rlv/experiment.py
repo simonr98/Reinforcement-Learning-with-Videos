@@ -1,15 +1,5 @@
-import os
-import gym
-import numpy as np
-from RLV.torch_rlv.algorithms.sac.softactorcritic import plot_results
 from RLV.torch_rlv.environments.utils import get_environment
 from RLV.torch_rlv.algorithms.utils import init_algorithm
-from RLV.torch_rlv.algorithms.sac.sac import SAC
-from RLV.torch_rlv.algorithms.sac.softactorcritic import SaveOnBestTrainingRewardCallback, SoftActorCritic
-from stable_baselines3.common.monitor import Monitor
-from stable_baselines3.common.results_plotter import load_results, ts2xy
-from stable_baselines3.common.noise import NormalActionNoise
-from stable_baselines3.common.callbacks import BaseCallback
 
 
 class Experiment:
@@ -21,7 +11,7 @@ class Experiment:
         self.policy = config['policy']
         self.lr_inverse_model = config['lr_inverse_model']
         self.wandb_log = config['wandb_log']
-        self.human_data = config['acrobot_human_data']
+        self.acrobot_paper_data = config['acrobot_paper_data']
         self.lr_sac = config['lr_sac']
         self.total_steps = config['total_steps']
         self.buffer_size = config['buffer_size']

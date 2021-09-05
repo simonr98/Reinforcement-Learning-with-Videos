@@ -4,7 +4,7 @@ from RLV.torch_rlv.environments.utils import get_environment
 from RLV.torch_rlv.algorithms.sac.sac import SAC
 
 class DatasetCreator():
-    def __init__(self, env_name, num_steps=20000, model_path="../output/sac_models/trained_for_3000"):
+    def __init__(self, env_name, num_steps=20000, model_path="../output/sac_models/acrobot/trained_for_1000000.zip"):
         self.env = get_environment(env_name)
         self.env_name = env_name
         self.num_steps = num_steps
@@ -14,7 +14,7 @@ class DatasetCreator():
         if self.env_name == 'visual_pusher':
             self.dataset = {'observation': [], 'observation_img': [], 'observation_img_raw': [], 'action': [],
                             'next_observation': [], 'reward': [],  'done': []}
-            self.paired_dataset = {'raw_img': [], 'filtered_img': []}
+            self.paired_dataset = {'observation_img_raw': [], 'observation_img': []}
         else:
             self.dataset = {'observation': [], 'action': [], 'next_observation': [], 'reward': [], 'done': []}
 
@@ -40,27 +40,27 @@ class DatasetCreator():
                 self.dataset['observation_img_raw'].append(obs_img_raw)
 
                 if i % 10 == 0:
-                    self.paired_dataset['raw_img'].append(obs_img_raw)
-                    self.paired_dataset['filtered_img'].append(obs_img)
+                    self.paired_dataset['observation_img_raw'].append(obs_img_raw)
+                    self.paired_dataset['observation_img'].append(obs_img)
 
             if not done:
                 obs = next_obs
             else:
                 obs = self.env.reset()
 
-            with open(f'../data/{self.env_name}/pusher_{self.total_steps}_SAC_steps'
+            with open(f'../data/{self.env_name}_data/{env_name}_{self.total_steps}_SAC_steps'
                       f'_{self.num_steps}_samples.pickle', 'w+b') as df:
                 pickle.dump(self.dataset, df)
 
             if self.env_name == 'visual_pusher':
-                with open(f'../data/{self.env_name}/paired_{self.total_steps}_SAC_steps'
+                with open(f'../data/{self.env_name}_data/paired_{self.total_steps}_SAC_steps'
                           f'_{self.num_steps}_samples.pickle', 'w+b') as df:
                     pickle.dump(self.paired_dataset, df)
 
 
 if __name__ == '__main__':
     creator = DatasetCreator(env_name='acrobot_continuous', num_steps=2000,
-                             model_path="../output/sac_models/trained_for_3000")
+                             model_path="../output/sac_models/acrobot/trained_for_1000000.zip")
 
     creator.save_data_of_model()
 

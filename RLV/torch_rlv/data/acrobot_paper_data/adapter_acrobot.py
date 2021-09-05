@@ -4,7 +4,7 @@ import os
 import numpy as np
 
 
-class AcrobotAdapter:
+class AcrobotAdapterPaper:
     def __init__(self, data_type='unpaired', env_name='Acrobot'):
         current_directory = os.path.dirname(__file__)
 

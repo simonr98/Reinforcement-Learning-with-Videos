@@ -10,6 +10,7 @@ from stable_baselines3.common.results_plotter import load_results, ts2xy
 from RLV.torch_rlv.utils.type_aliases import TrainFreq, TrainFrequencyUnit
 from stable_baselines3.common.noise import NormalActionNoise
 from stable_baselines3.common.callbacks import BaseCallback
+from RLV.torch_rlv.data.acrobot_continuous_data.adapter_acrobot import AcrobotAdapter
 from RLV.torch_rlv.algorithms.sac.softactorcritic import SaveOnBestTrainingRewardCallback
 from RLV.torch_rlv.algorithms.sac.softactorcritic import SoftActorCritic
 
@@ -55,7 +56,7 @@ class RlWithVideos(SoftActorCritic):
         if self.env_name == "acrobot_continuous":
             if self.human_data:
                 print('Data in Replay Pool of the paper is used to fill the action free buffer')
-                self.model.fill_action_free_buffer(human_data=True)
+                self.model.fill_action_free_buffer(paper_data=True)
             else:
                 print('not implemented yet')
             self.model.warmup_inverse_model()

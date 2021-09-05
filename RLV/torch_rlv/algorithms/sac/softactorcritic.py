@@ -44,7 +44,7 @@ class SoftActorCritic:
     def run(self, plot=False, make_dataset=False):
         callback = SaveOnBestTrainingRewardCallback(check_freq=1000, log_dir=self.log_dir)
         self.model.learn(total_timesteps=self.total_steps, callback=callback)
-        self.model.save(f'../output/{self.algo_name}_models/trained_for_{self.total_steps}')
+        self.model.save(f'../output/{self.env_name}/{self.algo_name}_models/trained_for_{self.total_steps}_steps')
 
         if plot:
             plot_results(self.log_dir)

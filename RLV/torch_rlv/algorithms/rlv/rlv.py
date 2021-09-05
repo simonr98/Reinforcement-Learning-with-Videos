@@ -11,12 +11,14 @@ from RLV.torch_rlv.utils.buffers import ReplayBuffer
 from RLV.torch_rlv.algorithms.sac.sac import SAC
 from stable_baselines3.common.noise import ActionNoise
 from RLV.torch_rlv.utils.type_aliases import ReplayBufferSamples
-from RLV.torch_rlv.data.acrobot_human_data.adapter_acrobot import AcrobotAdapter
+from RLV.torch_rlv.data.acrobot_paper_data.adapter_acrobot import AcrobotAdapterPaper
+from RLV.torch_rlv.data.acrobot_continuous_data.adapter_acrobot import AcrobotAdapter
 from stable_baselines3.common.utils import polyak_update
 from RLV.torch_rlv.models.convnet import ConvNet
 from RLV.torch_rlv.models.discriminator import DiscriminatorNetwork
-from RLV.torch_rlv.data.pusher_simulated_data.adapter_visual_img_data import AdapterVisualImgData
+from RLV.torch_rlv.data.visual_pusher_data.adapter_visual_pusher import AdapterVisualImgData
 from RLV.torch_rlv.utils.action_free_buffer import ActionFreeReplayBuffer
+from RLV.torch_rlv.utils.paired_buffer import PairedBuffer
 
 
 class RLV(SAC):
@@ -63,6 +65,11 @@ class RLV(SAC):
             # data
             self.simulation_data = AdapterVisualImgData()
 
+            paired_data = AdapterVisualImgData(paired_data=True)
+
+            self.paired_buffer = PairedBuffer(observation_img=paired_data.observation_img,
+                                              observation_img_raw=paired_data.observation_img_raw)
+
         if self.env_name == 'acrobot_continuous':
             self.action_free_replay_buffer = ReplayBuffer(
                 buffer_size=buffer_size, observation_space=env.observation_space,
@@ -74,20 +81,21 @@ class RLV(SAC):
                 observation_img_raw=self.simulation_data.observation_img_raw, done=self.simulation_data.done)
 
 
-    def fill_action_free_buffer(self, human_data=False, num_steps=200000, replay_buffer=None):
-        if human_data:
-            data = AcrobotAdapter(data_type='unpaired', env_name='Acrobot')
-            observations = data.observations
-            next_observations = data.next_observations
-            actions = data.actions
-            rewards = data.rewards
-            terminals = data.terminals
-
-            for i in range(0, observations.shape[0]):
-                self.action_free_replay_buffer.add(obs=observations[i], next_obs=next_observations[i], action=actions[i],
-                                                   reward=rewards[i], done=terminals[i], infos={'': ''})
+    def fill_action_free_buffer(self, paper_data=False, num_steps=200000, replay_buffer=None):
+        if paper_data:
+            data = AcrobotAdapterPaper()
         else:
-            print('not implemented yet')
+            data = AcrobotAdapter()
+
+        observations = data.observations
+        next_observations = data.next_observations
+        actions = data.actions
+        rewards = data.rewards
+        terminals = data.terminals
+
+        for i in range(0, observations.shape[0]):
+            self.action_free_replay_buffer.add(obs=observations[i], next_obs=next_observations[i], action=actions[i],
+                                               reward=rewards[i], done=terminals[i], infos={'': ''})
 
     @staticmethod
     def set_reward_acrobot(reward_obs):
@@ -136,14 +144,19 @@ class RLV(SAC):
                 print(f"Steps {step}, Encoder Loss: {loss.item()}")
 
 
-    def train_encoder(self, observation, observation_img, observation_img_raw):
+    def train_encoder(self, observation, observation_img):
         self.encoder_optimizer.zero_grad()
 
         encoder_input, encoder_target, true_labels = observation_img, observation, th.ones(self.half_batch_size,1)
         encoder_output = self.encoder(encoder_input.detach())
 
-        paired_loss = th.nn.MSELoss()(self.encoder(observation_img_raw.detach()),
-                                      self.encoder(observation_img.detach()))
+
+        # add paired data // obs = filtered, int = raw
+        paired_img_obs, paired_img_int = self.paired_buffer.sample()
+
+        paired_loss = th.nn.MSELoss()(self.encoder(paired_img_int.detach()),
+                                      self.encoder(paired_img_obs.detach()))
+
         # th.dist(self.encoder.forward(observation_img_raw), self.encoder.forward(observation_img), 2) ** 2
 
         # Train the generator
@@ -316,7 +329,7 @@ class RLV(SAC):
                 polyak_update(self.critic.parameters(), self.critic_target.parameters(), self.tau)
 
             if not self.env_name == 'acrobot_continuous':
-                self.train_encoder(observation=state_obs, observation_img=state_obs_img, observation_img_raw=state_obs_img_raw)
+                self.train_encoder(observation=state_obs, observation_img=state_obs_img)
 
         self._n_updates += gradient_steps
 
