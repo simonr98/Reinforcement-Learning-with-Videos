@@ -10,7 +10,7 @@ class ConvNet(nn.Module):
     """
     Image classifier using convolutional layers with max pooling.
     """
-    def __init__(self, output_dims=32):
+    def __init__(self, output_dims=20):
         """
         Model Constructor, Initialize all the layers to be used
         """
@@ -55,7 +55,7 @@ class ConvNet(nn.Module):
         return x
 
 if __name__ == '__main__':
-    conv_network = ConvNet(output_dims=32)
+    conv_network = ConvNet(output_dims=20)
     a = AdapterVisualImgData()
 
     input = T.from_numpy(a.observation_img,).float()

@@ -14,7 +14,7 @@ slurm_log: "../output/slurmlog/"
 ---
 # DEFAULT parameters (Optional)
 name: "DEFAULT"   #  useful for paralellization. defaults to 1.
-reps_in_parallel: 4 # number of repetitions in each job that are executed in parallel. defaults to 1.
+reps_in_parallel: 1 # number of repetitions in each job that are executed in parallel. defaults to 1.
 reps_per_job: 1 # number of repetitions in each job.
 repetitions: 1  # number of times one set of parameters is run
 
@@ -42,7 +42,7 @@ params:
 
 ---
 
-name: "sac_pusher_new"
+name: "sac_pusher"
 path: "../output/sac/"
 repetitions: 1   # repeat 8 times
 
@@ -50,7 +50,7 @@ repetitions: 1   # repeat 8 times
 params:
   log_dir: '../output/saved_models'
   total_steps: 1000000
-  project_name: 'visual_pusher_sac_lr_0.001'
+  project_name: 'visual_pusher_only_pushing'
   run_name: 'one_million_steps_pusher'
   env_name: "visual_pusher"
   algo_name: 'sac'

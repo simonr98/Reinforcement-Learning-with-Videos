@@ -24,9 +24,9 @@ class AdapterVisualImgData:
         self.observation_img_raw = T.from_numpy(np.reshape(np.array(self.data['observation_img_raw']), (self.n, 3, 120, 120))).float()
 
         if not paired_data:
-            self.observation = T.from_numpy(np.reshape(np.array(self.data['observation']), (self.n, 32)))
+            self.observation = T.from_numpy(np.reshape(np.array(self.data['observation']), (self.n, 20)))
             self.action = T.from_numpy(np.reshape(np.array(self.data['action']), (self.n, 4)))
-            self.next_observation = T.from_numpy(np.reshape(np.array(self.data['next_observation']), (self.n, 32)))
+            self.next_observation = T.from_numpy(np.reshape(np.array(self.data['next_observation']), (self.n, 20)))
             self.reward = T.from_numpy(np.array(self.data["reward"]))
             self.done = T.from_numpy(np.reshape(np.array(self.data["done"]), (self.n, 1)))
 
@@ -42,8 +42,3 @@ if __name__ == '__main__':
         print(a.next_observation.shape)
         print(a.reward.shape)
         print(a.done.shape)
-
-
-    # x = np.reshape((a.observation_img[0]).detach().numpy(), (120, 120, 3))
-    # x = Image.fromarray(x)
-    # x.show()
