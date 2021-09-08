@@ -1,7 +1,7 @@
 ---
 name: "SLURM"   # MUST BE "SLURM"
 # Required
-partition: "dev_multiple"
+partition: "fat"
 job-name: "SAC"    # this will be the experiments name in slurm
 num_parallel_jobs: 1
 ntasks: 1
@@ -23,9 +23,9 @@ params:
   path: "../output/sac"   # location to save results in
   env_name: 'acrobot_continuous'
   algo_name: 'sac'
-  wandb_log: False
+  wandb_log: True
   policy: 'MlpPolicy'
-  gamma: 0.99
+  gamma: 0.999
   train_freq: 1
   gradient_steps: 1
   total_steps: 1000000
@@ -42,15 +42,14 @@ params:
 
 ---
 
-name: "sac_pusher"
+name: "visual_pusher"
 path: "../output/sac/"
 repetitions: 1   # repeat 8 times
 
 # Experiment Parameters
 params:
-  log_dir: '../output/saved_models'
-  total_steps: 1000000
-  project_name: 'visual_pusher_only_pushing'
+  total_steps: 2000000
+  project_name: 'visual_pusher_sac'
   run_name: 'one_million_steps_pusher'
   env_name: "visual_pusher"
   algo_name: 'sac'

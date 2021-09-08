@@ -8,6 +8,7 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.results_plotter import load_results, ts2xy
 from stable_baselines3.common.noise import NormalActionNoise
 from stable_baselines3.common.callbacks import BaseCallback
+from datetime import datetime
 
 
 class SoftActorCritic:
@@ -44,7 +45,7 @@ class SoftActorCritic:
     def run(self, plot=False, make_dataset=False):
         callback = SaveOnBestTrainingRewardCallback(check_freq=1000, log_dir=self.log_dir)
         self.model.learn(total_timesteps=self.total_steps, callback=callback)
-        self.model.save(f'../output/{self.env_name}/{self.algo_name}_models/{self.project_name}trained_for_{self.total_steps}_steps')
+        self.model.save(f'../output/{self.algo_name}/{self.env_name}/{datetime.now()}_{self.algo_name}_trained_for_{self.total_steps}_steps')
 
         if plot:
             plot_results(self.log_dir)

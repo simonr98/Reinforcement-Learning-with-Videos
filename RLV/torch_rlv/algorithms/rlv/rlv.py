@@ -16,7 +16,7 @@ from RLV.torch_rlv.data.acrobot_continuous_data.adapter_acrobot import AcrobotAd
 from stable_baselines3.common.utils import polyak_update
 from RLV.torch_rlv.models.convnet import ConvNet
 from RLV.torch_rlv.models.discriminator import DiscriminatorNetwork
-from RLV.torch_rlv.data.visual_pusher_data.adapter_visual_pusher import AdapterVisualImgData
+from RLV.torch_rlv.data.visual_pusher.adapter_visual_pusher import AdapterVisualImgData
 from RLV.torch_rlv.utils.action_free_buffer import ActionFreeReplayBuffer
 from RLV.torch_rlv.utils.paired_buffer import PairedBuffer
 
