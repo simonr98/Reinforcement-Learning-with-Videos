@@ -22,7 +22,7 @@ class RlWithVideos(SoftActorCritic):
                  target_update_interval=1, target_entropy='auto', use_sde=False, sde_sample_freq=- 1,
                  use_sde_at_warmup=False, tensorboard_log=None, create_eval_env=False, policy_kwargs=None, verbose=1,
                  seed=None, device='auto', _init_setup_model=True, project_name='sac_experiment', run_name='test_sac',
-                 human_data=False, log_dir='../output/tmp/gym/', total_steps=1000, algo_name='rlv'):
+                 acrobot_paper_data=False, log_dir='../output/tmp/gym/', total_steps=1000, algo_name='rlv'):
 
         super().__init__(policy=policy, env_name=env_name, env=env, learning_rate=learning_rate, buffer_size=buffer_size,
                          learning_starts=learning_starts, batch_size=batch_size, tau=tau, gamma=gamma,
@@ -35,7 +35,7 @@ class RlWithVideos(SoftActorCritic):
 
         action_noise = NormalActionNoise(mean=np.zeros(self.n_actions), sigma=0.1 * np.ones(self.n_actions))
 
-        self.human_data = human_data
+        self.acrobot_paper_data = acrobot_paper_data
         self.log_dir = log_dir
         self.total_steps = total_steps
         self.env_name=env_name
@@ -54,11 +54,11 @@ class RlWithVideos(SoftActorCritic):
 
     def run(self, total_timesteps=int(1000000), plot=False):
         if self.env_name == "acrobot_continuous":
-            if self.human_data:
+            if self.acrobot_paper_data:
                 print('Data in Replay Pool of the paper is used to fill the action free buffer')
                 self.model.fill_action_free_buffer(paper_data=True)
             else:
-                print('not implemented yet')
+                self.model.fill_action_free_buffer(paper_data=False)
             self.model.warmup_inverse_model()
         else:
             self.model.warmup_encoder()

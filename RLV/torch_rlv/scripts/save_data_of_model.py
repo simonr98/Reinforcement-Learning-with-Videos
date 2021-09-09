@@ -48,19 +48,19 @@ class DatasetCreator():
             else:
                 obs = self.env.reset()
 
-            with open(f'../data/{self.env_name}_data/{env_name}_{self.total_steps}_SAC_steps'
-                      f'_{self.num_steps}_samples.pickle', 'w+b') as df:
-                pickle.dump(self.dataset, df)
+        with open(f'../data/{self.env_name}_data/{self.total_steps}_SAC_steps'
+                  f'_{self.num_steps}_samples.pickle', 'w+b') as df:
+            pickle.dump(self.dataset, df)
 
-            if self.env_name == 'visual_pusher':
-                with open(f'../data/{self.env_name}_data/paired_{self.total_steps}_SAC_steps'
-                          f'_{self.num_steps}_samples.pickle', 'w+b') as df:
-                    pickle.dump(self.paired_dataset, df)
+        if self.env_name == 'visual_pusher':
+            with open(f'../data/{self.env_name}_data/paired_{self.total_steps}_SAC_steps'
+                      f'_{self.num_steps}_samples.pickle', 'w+b') as df:
+                pickle.dump(self.paired_dataset, df)
 
 
 if __name__ == '__main__':
-    creator = DatasetCreator(env_name='acrobot_continuous', num_steps=2000,
-                             model_path="../output/sac_models/acrobot/trained_for_1000000.zip")
+    creator = DatasetCreator(env_name='acrobot_continuous', num_steps=50000,
+                             model_path="../data/acrobot_continuous_data/acrobot_sac_trained_for_1000000_steps")
 
     creator.save_data_of_model()
 

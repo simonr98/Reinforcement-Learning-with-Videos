@@ -98,8 +98,8 @@ class RLV(SAC):
                                                reward=rewards[i], done=terminals[i], infos={'': ''})
 
     @staticmethod
-    def set_reward_acrobot(reward_obs):
-        if reward_obs > -1:
+    def set_reward_acrobot(done_obs):
+        if done_obs > 0:
             return 10
         else:
             return -1
@@ -213,7 +213,7 @@ class RLV(SAC):
                 # set rewards for observational data
                 reward_obs = th.zeros(self.half_batch_size, 1)
                 for i in range(0, self.half_batch_size):
-                    reward_obs[i] = self.set_reward_acrobot(reward_obs=reward_obs[i])
+                    reward_obs[i] = self.set_reward_acrobot(done_obs=done_obs[i])
 
                 # replace the data used in SAC for each gradient steps by observational plus robot data
                 replay_data = ReplayBufferSamples(

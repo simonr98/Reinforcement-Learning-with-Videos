@@ -10,19 +10,18 @@ class AcrobotAdapter:
     def __init__(self):
         current_directory = os.path.dirname(__file__)
 
-        self.paired_data = paired_data
-
-        path = os.path.join(current_directory, '///')
+        path = os.path.join(current_directory, '1000000_SAC_steps_50000_samples.pickle')
 
         self.data = pickle.load(open(path, 'rb'))
 
         self.n = len(self.data['observation'])
 
-        self.observation = T.from_numpy(np.reshape(np.array(self.data['observation']), (self.n, 32)))
-        self.action = T.from_numpy(np.reshape(np.array(self.data['action']), (self.n, 4)))
-        self.next_observation = T.from_numpy(np.reshape(np.array(self.data['next_observation']), (self.n, 32)))
-        self.reward = T.from_numpy(np.array(self.data["reward"]))
-        self.done = T.from_numpy(np.reshape(np.array(self.data["done"]), (self.n, 1)))
+
+        self.observations = T.from_numpy(np.reshape(np.array(self.data['observation']), (self.n, 6)))
+        self.actions = T.from_numpy(np.reshape(np.array(self.data['action']), (self.n, 1)))
+        self.next_observations = T.from_numpy(np.reshape(np.array(self.data['next_observation']), (self.n, 6)))
+        self.rewards = T.from_numpy(np.array(self.data["reward"]))
+        self.terminals = T.from_numpy(np.reshape(np.array(self.data["done"]), (self.n, 1)))
 
 if __name__ == '__main__':
     a = AcrobotAdapter()
