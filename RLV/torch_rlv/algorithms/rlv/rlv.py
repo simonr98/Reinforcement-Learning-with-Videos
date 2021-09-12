@@ -50,7 +50,6 @@ class RLV(SAC):
                                                  output_dims=env.action_space.shape[-1], fc1_dims=64, fc2_dims=64,
                                                  fc3_dims=64)
 
-
         self.domain_shift = domain_shift
         if self.domain_shift:
             self.encoder = ConvNet(output_dims=self.env.observation_space.shape[-1])
@@ -65,28 +64,25 @@ class RLV(SAC):
 
             # data
             self.simulation_data = AdapterVisualPusher()
-
             self.paired_data = AdapterPairedData()
-
             self.paired_buffer = PairedBuffer(observation_img=self.paired_data.observation_img,
                                               observation_img_raw=self.paired_data.observation_img_raw)
 
-        if self.env_name == 'acrobot_continuous':
-            self.action_free_replay_buffer = ReplayBuffer(
-                buffer_size=buffer_size, observation_space=env.observation_space,
-                action_space=env.action_space, device='cpu', n_envs=1,
-                optimize_memory_usage=optimize_memory_usage, handle_timeout_termination=False)
-        else:
-            self.action_free_replay_buffer = ActionFreeReplayBuffer(
-                observation=self.simulation_data.observation, observation_img=self.simulation_data.observation_img,
-                observation_img_raw=self.simulation_data.observation_img_raw, done=self.simulation_data.done)
+
+        self.action_free_replay_buffer = ReplayBuffer(buffer_size=buffer_size,
+                                                      observation_space=env.observation_space,
+                                                      action_space=env.action_space, device='cpu', n_envs=1,
+                                                      optimize_memory_usage=optimize_memory_usage,
+                                                      handle_timeout_termination=False) \
+            if self.env_name == 'acrobot_continuous' \
+            else ActionFreeReplayBuffer(observation=self.simulation_data.observation,
+                                        observation_img=self.simulation_data.observation_img,
+                                        observation_img_raw=self.simulation_data.observation_img_raw,
+                                        done=self.simulation_data.done)
 
 
-    def fill_action_free_buffer(self, paper_data=False, num_steps=200000, replay_buffer=None):
-        if paper_data:
-            data = AcrobotAdapterPaper()
-        else:
-            data = AcrobotAdapter()
+    def fill_action_free_buffer_acrobot(self, paper_data=False, num_steps=200000, replay_buffer=None):
+        data = AcrobotAdapterPaper() if paper_data else AcrobotAdapter()
 
         observations = data.observations
         next_observations = data.next_observations
@@ -100,10 +96,8 @@ class RLV(SAC):
 
     @staticmethod
     def set_reward_acrobot(done_obs):
-        if done_obs > 0:
-            return 10
-        else:
-            return -1
+        reward = 10 if done_obs > 0 else -1
+        return reward
 
     def warmup_inverse_model(self):
         for step in range(0, self.warmup_steps):

@@ -23,7 +23,7 @@ params:
   path: "../output/sac"   # location to save results in
   env_name: 'acrobot_continuous'
   algo_name: 'sac'
-  wandb_log: True
+  wandb_log: False
   policy: 'MlpPolicy'
   gamma: 0.99
   train_freq: 1

@@ -5,7 +5,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 from RLV.torch_rlv.algorithms.sac.sac import SAC
-from stable_baselines3.common.monitor import Monitor
+from RLV.torch_rlv.utils.monitor import Monitor
 from stable_baselines3.common.results_plotter import load_results, ts2xy
 from RLV.torch_rlv.utils.type_aliases import TrainFreq, TrainFrequencyUnit
 from stable_baselines3.common.noise import NormalActionNoise
@@ -39,10 +39,8 @@ class RlWithVideos(SoftActorCritic):
         self.log_dir = log_dir
         self.total_steps = total_steps
         self.env_name=env_name
-        if self.env_name == 'acrobot_continuous':
-            domain_shift = False
-        else:
-            domain_shift = True
+
+        domain_shift = False if self.env_name == 'acrobot_continuous' else True
 
         self.model = RLV(warmup_steps=500, total_steps=total_steps, beta_inverse_model=learning_rate_inverse_model, env_name=env_name,
                          policy=policy, env=self.env, learning_rate=learning_rate, buffer_size=buffer_size,
@@ -54,11 +52,7 @@ class RlWithVideos(SoftActorCritic):
 
     def run(self, total_timesteps=int(1000000), plot=False):
         if self.env_name == "acrobot_continuous":
-            if self.acrobot_paper_data:
-                print('Data in Replay Pool of the paper is used to fill the action free buffer')
-                self.model.fill_action_free_buffer(paper_data=True)
-            else:
-                self.model.fill_action_free_buffer(paper_data=False)
+            self.model.fill_action_free_buffer_acrobot(paper_data)
             self.model.warmup_inverse_model()
         else:
             self.model.warmup_encoder()

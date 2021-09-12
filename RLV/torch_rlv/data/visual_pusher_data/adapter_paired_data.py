@@ -10,7 +10,7 @@ class AdapterPairedData:
     def __init__(self):
         current_directory = os.path.dirname(__file__)
 
-        path = os.path.join(current_directory, 'paired_3000_SAC_steps_500_samples.pickle')
+        path = os.path.join(current_directory, 'paired_500000_SAC_steps_20000_samples.pickle')
         self.data = pickle.load(open(path, 'rb'))
 
         self.n = len(self.data['observation_img'])
