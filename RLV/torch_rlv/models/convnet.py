@@ -3,7 +3,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torch as T
 import numpy as np
-from RLV.torch_rlv.data.visual_pusher.adapter_visual_pusher import AdapterVisualImgData
+from RLV.torch_rlv.data.visual_pusher_data.adapter_visual_pusher import AdapterVisualPusher
 
 
 class ConvNet(nn.Module):
@@ -56,7 +56,7 @@ class ConvNet(nn.Module):
 
 if __name__ == '__main__':
     conv_network = ConvNet(output_dims=20)
-    a = AdapterVisualImgData()
+    a = AdapterVisualPusher()
 
     input = T.from_numpy(a.observation_img,).float()
     output = conv_network.forward(input)

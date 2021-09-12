@@ -182,7 +182,7 @@ class OffPolicyAlgorithm(BaseAlgorithm):
         })
 
         wandb.init(project=self.wandb_config['project_name'], config=self.wandb_config,
-                   name=self.wandb_config['run_name'], reinit=True,
+                   name=self.wandb_config['run_name'], entity="rlv", reinit=True,
                    settings=wandb.Settings(start_method="thread"))
 
 

@@ -5,11 +5,11 @@ from RLV.torch_rlv.environments.utils import get_environment
 
 
 
-#env = PushMocapCtrl(render=True, max_steps=2000, nsubsteps=12, random_env=False)
+env = PushMocapCtrl(render=True, max_steps=500, nsubsteps=12, random_env=False)
 
-env = get_environment('acrobot_continuous')
+# env = get_environment('acrobot_continuous')
 
-model = SAC.load("../data/acrobot_continuous_data/acrobot_sac_trained_for_1000000_steps")
+model = SAC.load("../data/visual_pusher_data/478666_sac_trained_for_500000_steps")
 
 print(model.wandb_config)
 
@@ -19,7 +19,7 @@ obs = env.reset()
 for i in range(50000):
     action, state_ = model.predict(obs)
 
-    env.render()
+    #.render()
 
     next_obs, reward, done, _ = env.step(action)
 

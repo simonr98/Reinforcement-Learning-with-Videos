@@ -4,7 +4,7 @@ import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 from RLV.torch_rlv.algorithms.sac.sac import SAC
-from stable_baselines3.common.monitor import Monitor
+from RLV.torch_rlv.utils.monitor import Monitor
 from stable_baselines3.common.results_plotter import load_results, ts2xy
 from stable_baselines3.common.noise import NormalActionNoise
 from stable_baselines3.common.callbacks import BaseCallback
@@ -28,12 +28,12 @@ class SoftActorCritic:
         self.algo_name = algo_name
 
         self.total_steps = total_steps
-        self.n_actions = env.action_space.shape[-1]
-        action_noise = NormalActionNoise(mean=np.zeros(self.n_actions), sigma=0.1 * np.ones(self.n_actions))
+        #self.n_actions = env.action_space.shape[-1]
+        #action_noise = NormalActionNoise(mean=np.zeros(self.n_actions), sigma=0.1 * np.ones(self.n_actions))
 
         self.model = SAC(policy, env, env_name, total_steps=total_steps, learning_rate=learning_rate, buffer_size=buffer_size,
                          learning_starts=learning_starts, batch_size=batch_size, tau=tau, gamma=gamma,
-                         train_freq=train_freq, gradient_steps=gradient_steps, action_noise=action_noise,
+                         train_freq=train_freq, gradient_steps=gradient_steps,
                          optimize_memory_usage=optimize_memory_usage, ent_coef=ent_coef,
                          target_update_interval=target_update_interval, target_entropy=target_entropy, use_sde=use_sde,
                          sde_sample_freq=sde_sample_freq, use_sde_at_warmup=use_sde_at_warmup,

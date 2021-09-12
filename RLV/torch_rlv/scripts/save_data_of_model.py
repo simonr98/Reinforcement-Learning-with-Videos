@@ -9,6 +9,7 @@ class DatasetCreator():
         self.env_name = env_name
         self.num_steps = num_steps
         self.model = SAC.load(model_path)
+        print(self.model.wandb_config)
         self.total_steps = self.model.total_steps
 
         if self.env_name == 'visual_pusher':
@@ -48,9 +49,12 @@ class DatasetCreator():
             else:
                 obs = self.env.reset()
 
+            print(i)
+
         with open(f'../data/{self.env_name}_data/{self.total_steps}_SAC_steps'
                   f'_{self.num_steps}_samples.pickle', 'w+b') as df:
             pickle.dump(self.dataset, df)
+
 
         if self.env_name == 'visual_pusher':
             with open(f'../data/{self.env_name}_data/paired_{self.total_steps}_SAC_steps'
@@ -59,8 +63,8 @@ class DatasetCreator():
 
 
 if __name__ == '__main__':
-    creator = DatasetCreator(env_name='acrobot_continuous', num_steps=50000,
-                             model_path="../data/acrobot_continuous_data/acrobot_sac_trained_for_1000000_steps")
+    creator = DatasetCreator(env_name='visual_pusher', num_steps=500,
+                             model_path="../data/visual_pusher_data/752261_sac_trained_for_3000_steps")
 
     creator.save_data_of_model()
 

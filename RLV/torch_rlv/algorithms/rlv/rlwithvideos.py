@@ -33,7 +33,7 @@ class RlWithVideos(SoftActorCritic):
                          verbose=verbose, seed=seed, device=device, _init_setup_model=_init_setup_model,
                          project_name=project_name, run_name=run_name, wandb_log=wandb_log, algo_name=algo_name)
 
-        action_noise = NormalActionNoise(mean=np.zeros(self.n_actions), sigma=0.1 * np.ones(self.n_actions))
+        #action_noise = NormalActionNoise(mean=np.zeros(self.n_actions), sigma=0.1 * np.ones(self.n_actions))
 
         self.acrobot_paper_data = acrobot_paper_data
         self.log_dir = log_dir

@@ -23,9 +23,9 @@ params:
   path: "../output/sac"   # location to save results in
   env_name: 'acrobot_continuous'
   algo_name: 'sac'
-  wandb_log: False
+  wandb_log: True
   policy: 'MlpPolicy'
-  gamma: 0.999
+  gamma: 0.99
   train_freq: 1
   gradient_steps: 1
   total_steps: 1000000
@@ -42,29 +42,16 @@ params:
 
 ---
 
-#name: "visual_pusher"
-#path: "../output/sac/"
-#repetitions: 1   # repeat 8 times
-#
-## Experiment Parameters
-#params:
-#  total_steps: 2000000
-#  project_name: 'visual_pusher_sac'
-#  run_name: 'one_million_steps_pusher'
-#  env_name: "visual_pusher"
-#  algo_name: 'sac'
-#  policy: 'MlpPolicy'
-
-
-name: "acr"
+name: "visual_pusher"
 path: "../output/sac/"
 repetitions: 1   # repeat 8 times
 
 # Experiment Parameters
 params:
-  total_steps: 1000000
-  project_name: 'acrobot_continuous'
-  run_name: 'one_million_steps_pusher'
-  env_name: "acrobot_continuous"
-  algo_name: 'rlv'
+  total_steps: 500000
+  project_name: 'final_visual_pusher'
+  run_name: '500k_steps_sac'
+  env_name: "visual_pusher"
+  algo_name: 'sac'
   policy: 'MlpPolicy'
+

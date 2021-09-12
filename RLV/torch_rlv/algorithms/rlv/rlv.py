@@ -16,9 +16,10 @@ from RLV.torch_rlv.data.acrobot_continuous_data.adapter_acrobot import AcrobotAd
 from stable_baselines3.common.utils import polyak_update
 from RLV.torch_rlv.models.convnet import ConvNet
 from RLV.torch_rlv.models.discriminator import DiscriminatorNetwork
-from RLV.torch_rlv.data.visual_pusher.adapter_visual_pusher import AdapterVisualImgData
+from RLV.torch_rlv.data.visual_pusher_data.adapter_visual_pusher import AdapterVisualPusher
 from RLV.torch_rlv.utils.action_free_buffer import ActionFreeReplayBuffer
 from RLV.torch_rlv.utils.paired_buffer import PairedBuffer
+from RLV.torch_rlv.data.visual_pusher_data.adapter_paired_data import AdapterPairedData
 
 
 class RLV(SAC):
@@ -63,12 +64,12 @@ class RLV(SAC):
             self.domain_shift_loss = nn.BCELoss()
 
             # data
-            self.simulation_data = AdapterVisualImgData()
+            self.simulation_data = AdapterVisualPusher()
 
-            paired_data = AdapterVisualImgData(paired_data=True)
+            self.paired_data = AdapterPairedData()
 
-            self.paired_buffer = PairedBuffer(observation_img=paired_data.observation_img,
-                                              observation_img_raw=paired_data.observation_img_raw)
+            self.paired_buffer = PairedBuffer(observation_img=self.paired_data.observation_img,
+                                              observation_img_raw=self.paired_data.observation_img_raw)
 
         if self.env_name == 'acrobot_continuous':
             self.action_free_replay_buffer = ReplayBuffer(
@@ -134,7 +135,7 @@ class RLV(SAC):
 
             output_encoder = self.encoder(observation_img.float())
 
-            loss = self.encoder.criterion(output_encoder, observation)
+            loss = self.encoder.criterion(output_encoder, observation.float())
 
             self.encoder_optimizer.zero_grad()
             loss.backward()
