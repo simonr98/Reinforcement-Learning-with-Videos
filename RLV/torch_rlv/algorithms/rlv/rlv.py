@@ -123,12 +123,7 @@ class RLV(SAC):
 
     def warmup_encoder(self):
         for step in range(0, self.warmup_steps):
-            lower_bound = np.random.randint(0, high=self.simulation_data.n - self.half_batch_size, size=None, dtype=int)
-            upper_bound = lower_bound + self.half_batch_size
-
-            observation = self.simulation_data.observation[lower_bound:upper_bound]
-            observation_img = self.simulation_data.observation_img[lower_bound:upper_bound]
-
+            observation, observation_img, _, _, _, _, _ = self.action_free_replay_buffer.sample()
             output_encoder = self.encoder(observation_img.float())
 
             loss = self.encoder.criterion(output_encoder, observation.float())
@@ -142,37 +137,34 @@ class RLV(SAC):
 
 
     def train_encoder(self, observation, observation_img):
-        with autograd.detect_anomaly():
-            self.encoder_optimizer.zero_grad()
+#        with autograd.detect_anomaly():
+        self.encoder_optimizer.zero_grad()
 
-            encoder_input, encoder_target, true_labels = observation_img, observation, th.ones(self.half_batch_size,1)
-            encoder_output = self.encoder(encoder_input.float())
+        encoder_input, encoder_target, true_labels = observation_img, observation, th.ones(self.half_batch_size,1)
+        encoder_output = self.encoder(encoder_input.float())
 
+        # Train the generator
+        generator_discriminator_out = self.discriminator(encoder_output)
+        generator_loss = self.domain_shift_loss(generator_discriminator_out, true_labels)
+        generator_loss.backward()
+        self.encoder_optimizer.step()
 
-            # add paired data // obs = filtered, int = raw
-            paired_img_obs, paired_img_int = self.paired_buffer.sample()
+        # Train the discriminator on the true/generated data
+        self.discriminator_optimizer.zero_grad()
+        true_discriminator_out = self.discriminator(encoder_target.float())
+        true_discriminator_loss = self.domain_shift_loss(true_discriminator_out.float(), true_labels.float())
 
-            paired_loss = self.paired_loss(self.encoder(paired_img_int.float()),
-                                           self.encoder(paired_img_obs.float()))
+        generator_discriminator_out = self.discriminator(encoder_output.detach())
+        generator_discriminator_loss = self.domain_shift_loss(generator_discriminator_out, th.zeros(self.half_batch_size, 1))
 
-            # th.dist(self.encoder.forward(observation_img_raw), self.encoder.forward(observation_img), 2) ** 2
+        # add paired data // obs = filtered, int = raw
+        paired_img_obs, paired_img_int = self.paired_buffer.sample()
+        paired_loss = self.paired_loss(self.encoder(paired_img_int.float()),
+                                       self.encoder(paired_img_obs.float()))
 
-            # Train the generator
-            generator_discriminator_out = self.discriminator(encoder_output)
-            generator_loss = self.domain_shift_loss(generator_discriminator_out, true_labels)
-            generator_loss.backward()
-            self.encoder_optimizer.step()
-
-            # Train the discriminator on the true/generated data
-            self.discriminator_optimizer.zero_grad()
-            true_discriminator_out = self.discriminator(encoder_target.float())
-            true_discriminator_loss = self.domain_shift_loss(true_discriminator_out.float(), true_labels.float())
-
-            generator_discriminator_out = self.discriminator(encoder_output.detach())
-            generator_discriminator_loss = self.domain_shift_loss(generator_discriminator_out, th.zeros(self.half_batch_size, 1))
-            discriminator_loss = ((true_discriminator_loss + generator_discriminator_loss) / 2 + paired_loss) * 0.001
-            discriminator_loss.backward()
-            self.discriminator_optimizer.step()
+        discriminator_loss = ((true_discriminator_loss + generator_discriminator_loss) / 2 + paired_loss) * 0.001
+        discriminator_loss.backward()
+        self.discriminator_optimizer.step()
 
 
     def train(self, gradient_steps: int, batch_size: int = 64) -> None:
@@ -228,10 +220,10 @@ class RLV(SAC):
                                                                           data_int.next_observations, data_int.rewards, \
                                                                           data_int.dones
 
-
                 # Get domain invariant encodings
                 h_int, h_int_next = self.encoder(state_obs_img_raw.float()), self.encoder(next_state_obs_img_raw.float())
                 h_obs, h_obs_next = self.encoder(state_obs_img.float()), self.encoder(next_state_obs_img.float())
+
 
                 #Inverse Model
                 # inputs
@@ -241,6 +233,7 @@ class RLV(SAC):
                 #outputs
                 predicted_int_action = self.inverse_model(int_input_inverse_model.detach())
                 predicted_obs_action = self.inverse_model(obs_input_inverse_model.detach())
+
 
                 self.inverse_model_loss = self.inverse_model.criterion(predicted_int_action, action_int)
                 reward_obs = th.zeros(self.half_batch_size, 1)
@@ -305,11 +298,6 @@ class RLV(SAC):
             self.critic.optimizer.zero_grad()
             critic_loss.backward()
             self.critic.optimizer.step()
-
-            # Optimize Inverse Model
-            self.inverse_model.optimizer.zero_grad()
-            self.inverse_model_loss.backward()
-            self.inverse_model.optimizer.step()
 
             # Compute actor loss
             q_values_pi = th.cat(self.critic.forward(replay_data.observations, actions_pi), dim=1)
