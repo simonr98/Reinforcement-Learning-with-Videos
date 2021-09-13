@@ -11,12 +11,26 @@ class AdapterPairedData:
         current_directory = os.path.dirname(__file__)
 
         path = os.path.join(current_directory, 'paired_500000_SAC_steps_20000_samples.pickle')
-        self.data = pickle.load(open(path, 'rb'))
+        data = pickle.load(open(path, 'rb'))
 
-        self.n = len(self.data['observation_img'])
+        # get data
+        observation_img = data['observation_img']
+        observation_img_raw = data['observation_img_raw']
 
-        self.observation_img = T.from_numpy(np.reshape(np.array(self.data['observation_img']), (self.n, 3, 120, 120))).float()
-        self.observation_img_raw = T.from_numpy(np.reshape(np.array(self.data['observation_img_raw']), (self.n, 3, 120, 120))).float()
+        # convert to numpy array
+        observation_img = np.array(observation_img)
+        observation_img_raw = np.array(observation_img_raw)
+
+        # store data length
+        self.n = len(observation_img)
+
+        # numpy reshape operations
+        observation_img = np.reshape(observation_img, (self.n, 3, 120, 120))
+        observation_img_raw = np.reshape(observation_img_raw, (self.n, 3, 120, 120))
+
+        # store tensors
+        self.observation_img = T.from_numpy(observation_img)
+        self.observation_img_raw = T.from_numpy(observation_img_raw)
 
 
 if __name__ == '__main__':

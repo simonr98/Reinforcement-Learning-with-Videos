@@ -6,6 +6,7 @@ import pickle
 
 from typing import Any, Dict, Optional, Union
 from torch.nn import functional as F
+from torch import autograd
 from RLV.torch_rlv.models.inverse_model_network import InverseModelNetwork
 from RLV.torch_rlv.utils.buffers import ReplayBuffer
 from RLV.torch_rlv.algorithms.sac.sac import SAC
@@ -61,12 +62,13 @@ class RLV(SAC):
 
             # loss
             self.domain_shift_loss = nn.BCELoss()
+            self.paired_loss = nn.MSELoss()
 
             # data
-            self.simulation_data = AdapterVisualPusher()
-            self.paired_data = AdapterPairedData()
-            self.paired_buffer = PairedBuffer(observation_img=self.paired_data.observation_img,
-                                              observation_img_raw=self.paired_data.observation_img_raw)
+            simulation_data = AdapterVisualPusher()
+            paired_data = AdapterPairedData()
+            self.paired_buffer = PairedBuffer(observation_img=paired_data.observation_img,
+                                              observation_img_raw=paired_data.observation_img_raw)
 
 
         self.action_free_replay_buffer = ReplayBuffer(buffer_size=buffer_size,
@@ -75,10 +77,10 @@ class RLV(SAC):
                                                       optimize_memory_usage=optimize_memory_usage,
                                                       handle_timeout_termination=False) \
             if self.env_name == 'acrobot_continuous' \
-            else ActionFreeReplayBuffer(observation=self.simulation_data.observation,
-                                        observation_img=self.simulation_data.observation_img,
-                                        observation_img_raw=self.simulation_data.observation_img_raw,
-                                        done=self.simulation_data.done)
+            else ActionFreeReplayBuffer(observation=simulation_data.observation,
+                                        observation_img=simulation_data.observation_img,
+                                        observation_img_raw=simulation_data.observation_img_raw,
+                                        done=simulation_data.done)
 
 
     def fill_action_free_buffer_acrobot(self, paper_data=False, num_steps=200000, replay_buffer=None):
@@ -140,38 +142,37 @@ class RLV(SAC):
 
 
     def train_encoder(self, observation, observation_img):
-        self.encoder_optimizer.zero_grad()
+        with autograd.detect_anomaly():
+            self.encoder_optimizer.zero_grad()
 
-        encoder_input, encoder_target, true_labels = observation_img, observation, th.ones(self.half_batch_size,1)
-        encoder_output = self.encoder(encoder_input.detach())
+            encoder_input, encoder_target, true_labels = observation_img, observation, th.ones(self.half_batch_size,1)
+            encoder_output = self.encoder(encoder_input.float())
 
 
-        # add paired data // obs = filtered, int = raw
-        paired_img_obs, paired_img_int = self.paired_buffer.sample()
+            # add paired data // obs = filtered, int = raw
+            paired_img_obs, paired_img_int = self.paired_buffer.sample()
 
-        paired_loss = th.nn.MSELoss()(self.encoder(paired_img_int.detach()),
-                                      self.encoder(paired_img_obs.detach()))
+            paired_loss = self.paired_loss(self.encoder(paired_img_int.float()),
+                                           self.encoder(paired_img_obs.float()))
 
-        # th.dist(self.encoder.forward(observation_img_raw), self.encoder.forward(observation_img), 2) ** 2
+            # th.dist(self.encoder.forward(observation_img_raw), self.encoder.forward(observation_img), 2) ** 2
 
-        # Train the generator
-        generator_discriminator_out = self.discriminator(encoder_output.detach())
-        generator_loss = self.domain_shift_loss(generator_discriminator_out, true_labels)
-        generator_loss.backward()
-        self.encoder_optimizer.step()
+            # Train the generator
+            generator_discriminator_out = self.discriminator(encoder_output)
+            generator_loss = self.domain_shift_loss(generator_discriminator_out, true_labels)
+            generator_loss.backward()
+            self.encoder_optimizer.step()
 
-        # Train the discriminator on the true/generated data
-        self.discriminator_optimizer.zero_grad()
-        true_discriminator_out = self.discriminator(encoder_target.float())
-        true_discriminator_loss = self.domain_shift_loss(true_discriminator_out, true_labels)
+            # Train the discriminator on the true/generated data
+            self.discriminator_optimizer.zero_grad()
+            true_discriminator_out = self.discriminator(encoder_target.float())
+            true_discriminator_loss = self.domain_shift_loss(true_discriminator_out.float(), true_labels.float())
 
-        generator_discriminator_out = self.discriminator(encoder_output.detach())
-        generator_discriminator_loss = self.domain_shift_loss(generator_discriminator_out, th.zeros(self.half_batch_size, 1))
-
-        #discriminator_loss = (true_discriminator_loss + generator_discriminator_loss) / 2 #Todo
-        discriminator_loss = ((true_discriminator_loss + generator_discriminator_loss) / 2 + paired_loss) * 0.001
-        discriminator_loss.backward()
-        self.discriminator_optimizer.step()
+            generator_discriminator_out = self.discriminator(encoder_output.detach())
+            generator_discriminator_loss = self.domain_shift_loss(generator_discriminator_out, th.zeros(self.half_batch_size, 1))
+            discriminator_loss = ((true_discriminator_loss + generator_discriminator_loss) / 2 + paired_loss) * 0.001
+            discriminator_loss.backward()
+            self.discriminator_optimizer.step()
 
 
     def train(self, gradient_steps: int, batch_size: int = 64) -> None:
@@ -226,9 +227,11 @@ class RLV(SAC):
                 obs_int, action_int, next_obs_int, reward_int, done_int = data_int.observations, data_int.actions, \
                                                                           data_int.next_observations, data_int.rewards, \
                                                                           data_int.dones
+
+
                 # Get domain invariant encodings
-                h_int, h_int_next = self.encoder(state_obs_img_raw), self.encoder(next_state_obs_img_raw)
-                h_obs, h_obs_next = self.encoder(state_obs_img), self.encoder(next_state_obs_img)
+                h_int, h_int_next = self.encoder(state_obs_img_raw.float()), self.encoder(next_state_obs_img_raw.float())
+                h_obs, h_obs_next = self.encoder(state_obs_img.float()), self.encoder(next_state_obs_img.float())
 
                 #Inverse Model
                 # inputs
@@ -353,7 +356,7 @@ class RLV(SAC):
             })
 
         if self.domain_shift:
-            self.logger.record("train/domain_shift_loss", self.domain_shift_loss.item())
+            self.logger.record("train/domain_shift_loss", self.domain_shift_loss)
 
         if len(ent_coef_losses) > 0:
             self.logger.record("train/ent_coef_loss", np.mean(ent_coef_losses))

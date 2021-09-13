@@ -7,7 +7,7 @@ from RLV.torch_rlv.algorithms.sac.sac import SAC
 from fastgrab import screenshot
 
 class DatasetCreator():
-    def __init__(self, env_name, num_steps=20000, model_path="../output/sac_models/acrobot/trained_for_1000000.zip"):
+    def __init__(self, env_name, num_steps=40000, model_path="../output/sac_models/acrobot/trained_for_1000000.zip"):
         self.env = get_environment(env_name)
         self.env_name = env_name
         self.num_steps = num_steps
