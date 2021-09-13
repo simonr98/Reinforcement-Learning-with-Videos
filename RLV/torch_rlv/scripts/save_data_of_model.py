@@ -23,7 +23,7 @@ class DatasetCreator():
             self.dataset = {'observation': [], 'action': [], 'next_observation': [], 'reward': [], 'done': []}
 
     def get_image(self, mode="rgb_array", noise=None):
-        img_big = cv2.cvtColor(screenshot.Screenshot().capture(), cv2.COLOR_RGBA2RGB)
+        img_big = cv2.cvtColor(screenshot.Screenshot().capture(), cv2.COLOR_BGRA2RGB)
         img = cv2.resize(img_big, (120,120), interpolation = cv2.INTER_AREA)
 
         if noise == "gauss":
@@ -38,7 +38,7 @@ class DatasetCreator():
 
     def save_data_of_model(self):
         global filter
-        filter = 'gauss'
+        filter = 'red'
 
         # random steps to adjust camera
         self.env.reset()
@@ -50,31 +50,57 @@ class DatasetCreator():
 
         obs = self.env.reset()
 
+        counter = 0
+
         for i in range(self.num_steps):
             if self.env_name == 'visual_pusher':
-                obs_img_raw = self.get_image(noise=filter)
-                obs_img = self.get_image()
+                # get the images with and without noise
+                obs_img_raw = self.get_image()
+                obs_img = self.get_image(noise=filter)
 
             action, state_ = self.model.predict(obs)
             next_obs, reward, done, _ = self.env.step(action)
+            counter += 1
 
+            # build up the data set
             self.dataset['observation'].append(obs)
             self.dataset['action'].append(action)
             self.dataset['next_observation'].append(next_obs)
             self.dataset['reward'].append(reward)
             self.dataset['done'].append(done)
 
+            # if visual pusher append image data
             if self.env_name == 'visual_pusher':
                 self.dataset['observation_img'].append(obs_img)
                 self.dataset['observation_img_raw'].append(obs_img_raw)
 
+                # in every 10. step append paired image data
                 if i % 10 == 0:
                     self.paired_dataset['observation_img_raw'].append(obs_img_raw)
                     self.paired_dataset['observation_img'].append(obs_img)
+
             if not done:
                 obs = next_obs
+
+            # if not succesfull drop observations
+            elif self.env_name == 'visual_pusher' and counter == 300:
+                obs = self.env.reset()
+                n = len(self.dataset['observation'])
+                self.dataset['observation'] = self.dataset['observation'][:n-counter]
+                self.dataset['action'] = self.dataset['action'][:n-counter]
+                self.dataset['next_observation'] = self.dataset['next_observation'][:n-counter]
+                self.dataset['reward'] = dataset['reward'][:n-counter]
+                self.dataset['done'] = self.dataset['done'][:n-counter]
+                self.dataset['observation_img'] = self.dataset['observation_img'][:n-counter]
+                self.dataset['observation_img_raw'] = self.dataset['observation_img_raw'][:n-counter]
+                if i % 10 == 0:
+                    self.paired_dataset['observation_img_raw'] = self.paired_dataset['observation_img_raw'][:n-counter]
+                    self.paired_dataset['observation_img'] = self.paired_dataset['observation_img'][:n-counter]
+                counter = 0
+
             else:
                 obs = self.env.reset()
+                counter = 0
                 filter = 'gauss' if filter == 'red' else 'gauss'
 
             if i % 500 == 0:
@@ -91,7 +117,7 @@ class DatasetCreator():
 
 
 if __name__ == '__main__':
-    creator = DatasetCreator(env_name='visual_pusher', num_steps=20000,
+    creator = DatasetCreator(env_name='visual_pusher', num_steps=50000,
                              model_path="../data/visual_pusher_data/478666_sac_trained_for_500000_steps")
 
     creator.save_data_of_model()
