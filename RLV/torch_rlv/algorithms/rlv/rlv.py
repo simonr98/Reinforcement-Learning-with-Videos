@@ -251,6 +251,8 @@ class RLV(SAC):
                     rewards=th.cat((reward_int, reward_obs.detach()), dim=0)
                 )
 
+                replay_data = data_int
+
 
             # We need to sample because `log_std` may have changed between two gradient steps
             if self.use_sde:

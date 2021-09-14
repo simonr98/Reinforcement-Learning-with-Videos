@@ -91,8 +91,8 @@ class DatasetCreator():
                 self.dataset['next_observation'] = self.dataset['next_observation'][:n-counter]
                 self.dataset['reward'] = dataset['reward'][:n-counter]
                 self.dataset['done'] = self.dataset['done'][:n-counter]
-                self.dataset['observation_img'] = self.dataset['observation_img'][:n-counter]
-                self.dataset['observation_img_raw'] = self.dataset['observation_img_raw'][:n-counter]
+                # self.dataset['observation_img'] = self.dataset['observation_img'][:n-counter]
+                # self.dataset['observation_img_raw'] = self.dataset['observation_img_raw'][:n-counter]
                 if i % 10 == 0:
                     self.paired_dataset['observation_img_raw'] = self.paired_dataset['observation_img_raw'][:n-counter]
                     self.paired_dataset['observation_img'] = self.paired_dataset['observation_img'][:n-counter]
@@ -117,7 +117,7 @@ class DatasetCreator():
 
 
 if __name__ == '__main__':
-    creator = DatasetCreator(env_name='visual_pusher', num_steps=50000,
+    creator = DatasetCreator(env_name='visual_pusher', num_steps=10000,
                              model_path="../data/visual_pusher_data/478666_sac_trained_for_500000_steps")
 
     creator.save_data_of_model()
