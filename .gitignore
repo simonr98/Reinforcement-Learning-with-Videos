@@ -131,3 +131,5 @@ notebooks/
 /RLV/torch_rlv/data/acrobot_sac_data/data_from_sac_trained_for_975000_steps.pickle
 /RLV/torch_rlv/data/pusher_simulated_data/simulated_pusher_data_1500_steps.pickle
 /RLV/torch_rlv/data/pusher_simulated_data/simulated_pusher_data_100000_steps.pickle
+/RLV/torch_rlv/data/visual_pusher_data/paired_500000_SAC_steps_10000_samples.pickle
+/RLV/torch_rlv/data/visual_pusher_data/500000_SAC_steps_10000_samples.pickle

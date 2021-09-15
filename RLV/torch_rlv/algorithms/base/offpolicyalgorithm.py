@@ -602,9 +602,6 @@ class OffPolicyAlgorithm(BaseAlgorithm):
                 # if self.env_name == 'acrobot_continuous':
                 #     env.render()
 
-                if self.env_name == 'visual_pusher':
-                    env.render(mode='rgb_array')
-
                 # Select action randomly or according to policy
                 action, buffer_action = self._sample_action(learning_starts, action_noise)
 

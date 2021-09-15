@@ -13,7 +13,7 @@ import matplotlib.image as mpimg
 class AdapterVisualPusher:
     def __init__(self):
         current_directory = os.path.dirname(__file__)
-        path = os.path.join(current_directory, '500000_SAC_steps_10000_samples.pickle')
+        path = os.path.join(current_directory, '500000_SAC_steps_1000_samples.pickle')
 
         # get data
         data = pickle.load(open(path, 'rb'))
@@ -27,12 +27,17 @@ class AdapterVisualPusher:
 
         # convert to numpy array
         observation = np.array(observation)
-        observation_img = np.array(observation_img)[:, 0:80,20:100]
-        observation_img_raw = np.array(observation_img_raw)[:, 0:80,20:100]
+        observation_img = np.array(observation_img)
+        observation_img_raw = np.array(observation_img_raw)
         action = np.array(action)
         next_observation = np.array(next_observation)
         reward = np.array(reward)
         done = np.array(done)
+
+        img = observation_img[500]
+
+        imgplot = plt.imshow(img)
+        plt.show()
 
         # store length of data
         self.n = len(observation)
@@ -42,6 +47,7 @@ class AdapterVisualPusher:
         next_observation = np.reshape(next_observation, (self.n, next_observation.shape[1]))
         action = np.reshape(action, (self.n, action.shape[1]))
         done = np.reshape(done, (self.n, 1))
+
         observation_img = np.reshape(observation_img, (self.n, 3, 80, 80))
         observation_img_raw = np.reshape(observation_img_raw, (self.n, 3, 80, 80))
 
