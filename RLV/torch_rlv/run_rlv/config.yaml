@@ -48,10 +48,10 @@ repetitions: 1   # repeat 8 times
 
 # Experiment Parameters
 params:
-  total_steps: 1000000
-  project_name: 'sac'
-  run_name: 'sac'
+  total_steps: 500000
+  project_name: 'rlv'
+  run_name: 'rlv'
   env_name: "visual_pusher"
-  algo_name: 'sac'
+  algo_name: 'rlv'
   policy: 'MlpPolicy'
 

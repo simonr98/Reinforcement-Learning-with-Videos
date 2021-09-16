@@ -13,7 +13,7 @@ import matplotlib.image as mpimg
 class AdapterVisualPusher:
     def __init__(self):
         current_directory = os.path.dirname(__file__)
-        path = os.path.join(current_directory, '500000_SAC_steps_1000_samples.pickle')
+        path = os.path.join(current_directory, '500000_SAC_steps_10000_samples.pickle')
 
         # get data
         data = pickle.load(open(path, 'rb'))

@@ -18,8 +18,8 @@ class AdapterPairedData:
         observation_img_raw = data['observation_img_raw']
 
         # convert to numpy array
-        observation_img = np.array(observation_img)[:, 0:80,20:100]
-        observation_img_raw = np.array(observation_img_raw)[:, 0:80,20:100]
+        observation_img = np.array(observation_img)
+        observation_img_raw = np.array(observation_img_raw)
 
         # store data length
         self.n = len(observation_img)
