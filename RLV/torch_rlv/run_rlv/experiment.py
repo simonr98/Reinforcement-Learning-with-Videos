@@ -9,6 +9,7 @@ class Experiment:
         self.env = get_environment(self.env_name)
         self.algo_name = config['algo_name']
         self.policy = config['policy']
+        self.device = config['device']
         self.lr_inverse_model = config['lr_inverse_model']
         self.wandb_log = config['wandb_log']
         self.acrobot_paper_data = config['acrobot_paper_data']

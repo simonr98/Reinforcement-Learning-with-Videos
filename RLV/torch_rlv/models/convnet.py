@@ -64,7 +64,6 @@ if __name__ == '__main__':
     output = conv_network.forward(input)
 
     print(output.shape)
-
     print(a.observation.shape)
     print(input.shape)
     print(output.shape)

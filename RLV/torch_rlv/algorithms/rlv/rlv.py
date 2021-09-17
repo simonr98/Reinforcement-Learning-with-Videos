@@ -49,13 +49,13 @@ class RLV(SAC):
         self.beta_inverse_model = beta_inverse_model
         self.inverse_model = InverseModelNetwork(beta=beta_inverse_model, input_dims=env.observation_space.shape[-1] * 2,
                                                  output_dims=env.action_space.shape[-1], fc1_dims=64, fc2_dims=64,
-                                                 fc3_dims=64)
+                                                 fc3_dims=64).to(self.device)
 
         self.domain_shift = domain_shift
         if self.domain_shift:
-            self.encoder = ConvNet(output_dims=self.env.observation_space.shape[-1])
+            self.encoder = ConvNet(output_dims=self.env.observation_space.shape[-1]).to(self.device)
             self.discriminator = DiscriminatorNetwork(input_dims=self.env.observation_space.shape[-1],
-                                                      beta=3e-8, fc1_dims=64, fc2_dims=64, fc3_dims=64)
+                                                      beta=3e-8, fc1_dims=64, fc2_dims=64, fc3_dims=64).to(self.device)
             # Optimizers
             self.encoder_optimizer = th.optim.Adam(self.encoder.parameters(), lr=3e-8)
             self.discriminator_optimizer = th.optim.Adam(self.discriminator.parameters(), lr=3e-8)
@@ -67,20 +67,20 @@ class RLV(SAC):
             # data
             simulation_data = AdapterVisualPusher()
             paired_data = AdapterPairedData()
-            self.paired_buffer = PairedBuffer(observation_img=paired_data.observation_img,
-                                              observation_img_raw=paired_data.observation_img_raw)
+            self.paired_buffer = PairedBuffer(observation_img=paired_data.observation_img.to(self.device),
+                                              observation_img_raw=paired_data.observation_img_raw.to(self.device))
 
 
         self.action_free_replay_buffer = ReplayBuffer(buffer_size=buffer_size,
                                                       observation_space=env.observation_space,
-                                                      action_space=env.action_space, device='cpu', n_envs=1,
+                                                      action_space=env.action_space, device=self.device, n_envs=1,
                                                       optimize_memory_usage=optimize_memory_usage,
                                                       handle_timeout_termination=False) \
             if self.env_name == 'acrobot_continuous' \
-            else ActionFreeReplayBuffer(observation=simulation_data.observation,
-                                        observation_img=simulation_data.observation_img,
-                                        observation_img_raw=simulation_data.observation_img_raw,
-                                        done=simulation_data.done)
+            else ActionFreeReplayBuffer(observation=simulation_data.observation.to(self.device),
+                                        observation_img=simulation_data.observation_img.to(self.device),
+                                        observation_img_raw=simulation_data.observation_img_raw.to(self.device),
+                                        done=simulation_data.done.to(self.device))
 
 
     def fill_action_free_buffer_acrobot(self, paper_data=False, num_steps=200000, replay_buffer=None):
@@ -140,7 +140,8 @@ class RLV(SAC):
 #        with autograd.detect_anomaly():
         self.encoder_optimizer.zero_grad()
 
-        encoder_input, encoder_target, true_labels = observation_img, observation, th.ones(self.half_batch_size,1)
+        encoder_input, encoder_target, true_labels = observation_img, observation, \
+                                                     th.ones((self.half_batch_size,1), device=self.device)
         encoder_output = self.encoder(encoder_input.float())
 
         # Train the generator
@@ -155,7 +156,8 @@ class RLV(SAC):
         true_discriminator_loss = self.domain_shift_loss(true_discriminator_out.float(), true_labels.float())
 
         generator_discriminator_out = self.discriminator(encoder_output.detach())
-        generator_discriminator_loss = self.domain_shift_loss(generator_discriminator_out, th.zeros(self.half_batch_size, 1))
+        generator_discriminator_loss = self.domain_shift_loss(generator_discriminator_out,
+                                                              th.zeros((self.half_batch_size, 1), device=self.device))
 
         # add paired data // obs = filtered, int = raw
         paired_img_obs, paired_img_int = self.paired_buffer.sample()
@@ -199,7 +201,7 @@ class RLV(SAC):
                 self.inverse_model_loss = self.inverse_model.criterion(action_obs, target_action)
 
                 # set rewards for observational data
-                reward_obs = th.zeros(self.half_batch_size, 1)
+                reward_obs = th.zeros((self.half_batch_size, 1), device=self.device)
                 for i in range(0, self.half_batch_size):
                     reward_obs[i] = self.set_reward_acrobot(done_obs=done_obs[i])
 
@@ -236,7 +238,7 @@ class RLV(SAC):
 
 
                 self.inverse_model_loss = self.inverse_model.criterion(predicted_int_action, action_int)
-                reward_obs = th.zeros(self.half_batch_size, 1)
+                reward_obs = th.zeros((self.half_batch_size, 1), device=self.device)
 
                 for i in range(0,self.half_batch_size):
                     if done_obs[i]:
@@ -250,8 +252,6 @@ class RLV(SAC):
                     dones=th.cat((done_int, done_obs.detach()), dim=0),
                     rewards=th.cat((reward_int, reward_obs.detach()), dim=0)
                 )
-
-                replay_data = data_int
 
 
             # We need to sample because `log_std` may have changed between two gradient steps

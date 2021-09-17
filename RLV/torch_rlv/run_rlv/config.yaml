@@ -1,15 +1,15 @@
 ---
+# Slurm config bwuni gpu
 name: "SLURM"   # MUST BE "SLURM"
-# Required
-partition: "fat"
-job-name: "SAC"    # this will be the experiments name in slurm
-num_parallel_jobs: 1
-ntasks: 1
-cpus-per-task: 4
-mem-per-cpu: 16000
-time: 1200 # in minutes
+partition: "gpu_4"  # "single" for cpu, "gpu_4" or gpu_8" for gpu
+job-name: "test" # this will be the experiment's name in slurm
+num_parallel_jobs: 1  # max number of jobs executed in parallel
+ntasks: 1   #  leave that like it is
+cpus-per-task: 4   # there are 5 cores for each GPU on the gpu_8 queue and 10 per GPU on the gpu_4 queue. Never use 5! don't ask why!
+time: 1200   # in minutes
+sbatch_args:   # gpus need to be explicitly requested using this
+  gres: "gpu:1" #and this
 slurm_log: "../output/slurmlog/"
-
 
 ---
 # DEFAULT parameters (Optional)
@@ -30,6 +30,7 @@ params:
   gradient_steps: 1
   total_steps: 1000000
   project_name: 'unknown_project'
+  device: 'auto'
   run_name: 'test'
   lr_sac: 0.0003
   buffer_size: 1000000
