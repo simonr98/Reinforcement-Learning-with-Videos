@@ -23,7 +23,7 @@ class DatasetCreator():
         if self.env_name == 'visual_pusher':
             self.dataset = {'observation': [], 'observation_img': [], 'observation_img_raw': [], 'action': [],
                             'next_observation': [], 'reward': [],  'done': []}
-            self.paired_dataset = {'observation_img_raw': [], 'observation_img': []}
+            self.paired_dataset = {'observation': [], 'observation_img_raw': [], 'observation_img': []}
         else:
             self.dataset = {'observation': [], 'action': [], 'next_observation': [], 'reward': [], 'done': []}
 
@@ -70,6 +70,7 @@ class DatasetCreator():
 
                 # in every 10. step append paired image data
                 if i % 10 == 0:
+                    self.paired_dataset['observation'].append(obs)
                     self.paired_dataset['observation_img_raw'].append(obs_img_raw)
                     self.paired_dataset['observation_img'].append(obs_img)
 
@@ -85,6 +86,7 @@ class DatasetCreator():
                 self.dataset['observation_img'] = self.dataset['observation_img'][:n-counter]
                 self.dataset['observation_img_raw'] = self.dataset['observation_img_raw'][:n-counter]
                 if i % 10 == 0:
+                    self.paired_dataset['observation'] = self.paired_dataset['observation'][:n-counter]
                     self.paired_dataset['observation_img_raw'] = self.paired_dataset['observation_img_raw'][:n-counter]
                     self.paired_dataset['observation_img'] = self.paired_dataset['observation_img'][:n-counter]
                 counter = 0
@@ -110,7 +112,7 @@ class DatasetCreator():
 
 
 if __name__ == '__main__':
-    creator = DatasetCreator(env_name='visual_pusher', num_steps=50000, max_length_episode=250,
+    creator = DatasetCreator(env_name='visual_pusher', num_steps=20000, max_length_episode=220,
                              model_path="../data/visual_pusher_data/478666_sac_trained_for_500000_steps")
     creator.save_data_of_model()
 

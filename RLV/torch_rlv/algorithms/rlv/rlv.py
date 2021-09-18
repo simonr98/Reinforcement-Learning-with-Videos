@@ -67,7 +67,8 @@ class RLV(SAC):
             # data
             simulation_data = AdapterVisualPusher()
             paired_data = AdapterPairedData()
-            self.paired_buffer = PairedBuffer(observation_img=paired_data.observation_img.to(self.device),
+            self.paired_buffer = PairedBuffer(observation=paired_data.observation.to(self.device),
+                                              observation_img=paired_data.observation_img.to(self.device),
                                               observation_img_raw=paired_data.observation_img_raw.to(self.device))
 
 
@@ -123,50 +124,46 @@ class RLV(SAC):
 
     def warmup_encoder(self):
         for step in range(0, self.warmup_steps):
-            observation, observation_img, _, _, _, _, _ = self.action_free_replay_buffer.sample()
-            output_encoder = self.encoder(observation_img.float())
+            observation, _, _, _, _, _, _ = self.action_free_replay_buffer.sample()
+            _, state_obs_img, _, _, _, _, _ = self.action_free_replay_buffer.sample()
+            self.train_encoder(h_int=observation, observation_img=state_obs_img)
 
-            loss = self.encoder.criterion(output_encoder, observation.float())
-
-            self.encoder_optimizer.zero_grad()
-            loss.backward()
-            self.encoder_optimizer.step()
-
-            if step % 100 == 0:
+            if step % 300 == 0:
                 print(f"Steps {step}, Encoder Loss: {loss.item()}")
 
 
-    def train_encoder(self, observation, observation_img):
+    def train_encoder(self, h_int, observation_img):
 #        with autograd.detect_anomaly():
-        self.encoder_optimizer.zero_grad()
+        input_image, real_state, true_labels = observation_img, h_int, \
+                                               th.ones((self.half_batch_size,1), device=self.device)
 
-        encoder_input, encoder_target, true_labels = observation_img, observation, \
-                                                     th.ones((self.half_batch_size,1), device=self.device)
-        encoder_output = self.encoder(encoder_input.float())
+        fake_state = self.encoder(input_image.float())
 
-        # Train the generator
-        generator_discriminator_out = self.discriminator(encoder_output)
-        generator_loss = self.domain_shift_loss(generator_discriminator_out, true_labels)
-        generator_loss.backward()
-        self.encoder_optimizer.step()
+        # add paired data // obs = filtered, int = raw
+        paired_obs, paired_img_obs, _ = self.paired_buffer.sample()
+        paired_loss = self.paired_loss(paired_obs.float(), self.encoder(paired_img_obs.float()))
 
         # Train the discriminator on the true/generated data
         self.discriminator_optimizer.zero_grad()
-        true_discriminator_out = self.discriminator(encoder_target.float())
+        true_discriminator_out = self.discriminator(real_state.float())
         true_discriminator_loss = self.domain_shift_loss(true_discriminator_out.float(), true_labels.float())
 
-        generator_discriminator_out = self.discriminator(encoder_output.detach())
-        generator_discriminator_loss = self.domain_shift_loss(generator_discriminator_out,
-                                                              th.zeros((self.half_batch_size, 1), device=self.device))
+        fake_discriminator_out = self.discriminator(fake_state)
+        fake_discriminator_loss = self.domain_shift_loss(fake_discriminator_out,
+                                                         th.zeros((self.half_batch_size, 1), device=self.device))
 
-        # add paired data // obs = filtered, int = raw
-        paired_img_obs, paired_img_int = self.paired_buffer.sample()
-        paired_loss = self.paired_loss(self.encoder(paired_img_int.float()),
-                                       self.encoder(paired_img_obs.float()))
-
-        discriminator_loss = ((true_discriminator_loss + generator_discriminator_loss) / 2 + paired_loss) * 0.001
-        discriminator_loss.backward()
+        # Optimize Discriminator Loss
+        discriminator_loss = ((true_discriminator_loss + fake_discriminator_loss) / 2 + paired_loss) * 0.001
+        discriminator_loss.backward(retain_graph=True)
         self.discriminator_optimizer.step()
+
+        output = self.discriminator(fake_state)
+
+        # Train the generator
+        self.encoder_optimizer.zero_grad()
+        generator_loss = self.domain_shift_loss(output, true_labels)
+        generator_loss.backward()
+        self.encoder_optimizer.step()
 
 
     def train(self, gradient_steps: int, batch_size: int = 64) -> None:
@@ -215,15 +212,16 @@ class RLV(SAC):
 
             # visual_pusher case
             else:
-                state_obs, state_obs_img, state_obs_img_raw, next_state_obs, next_state_obs_img, \
+                state_obs, state_obs_img, state_obs_img_raw, next_state_obs, _, \
                 next_state_obs_img_raw, done_obs = self.action_free_replay_buffer.sample(batch_size=self.half_batch_size)
 
                 obs_int, action_int, next_obs_int, reward_int, done_int = data_int.observations, data_int.actions, \
                                                                           data_int.next_observations, data_int.rewards, \
                                                                           data_int.dones
 
+
                 # Get domain invariant encodings
-                h_int, h_int_next = self.encoder(state_obs_img_raw.float()), self.encoder(next_state_obs_img_raw.float())
+                h_int, h_int_next = obs_int, next_obs_int
                 h_obs, h_obs_next = self.encoder(state_obs_img.float()), self.encoder(next_state_obs_img.float())
 
 
@@ -317,7 +315,7 @@ class RLV(SAC):
                 polyak_update(self.critic.parameters(), self.critic_target.parameters(), self.tau)
 
             if not self.env_name == 'acrobot_continuous':
-                self.train_encoder(observation=state_obs, observation_img=state_obs_img)
+                self.train_encoder(observation=h_int, observation_img=state_obs_img)
 
         self._n_updates += gradient_steps
 

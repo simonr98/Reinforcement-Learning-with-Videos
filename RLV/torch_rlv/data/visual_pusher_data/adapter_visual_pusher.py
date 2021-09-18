@@ -13,7 +13,7 @@ import matplotlib.image as mpimg
 class AdapterVisualPusher:
     def __init__(self):
         current_directory = os.path.dirname(__file__)
-        path = os.path.join(current_directory, '500000_SAC_steps_10000_samples.pickle')
+        path = os.path.join(current_directory, '500000_SAC_steps_20000_samples.pickle')
 
         # get data
         data = pickle.load(open(path, 'rb'))
@@ -34,10 +34,10 @@ class AdapterVisualPusher:
         reward = np.array(reward)
         done = np.array(done)
 
-        img = observation_img[500]
-
-        imgplot = plt.imshow(img)
-        plt.show()
+        # img = observation_img[500]
+        #
+        # imgplot = plt.imshow(img)
+        # plt.show()
 
         # store length of data
         self.n = len(observation)
@@ -48,8 +48,8 @@ class AdapterVisualPusher:
         action = np.reshape(action, (self.n, action.shape[1]))
         done = np.reshape(done, (self.n, 1))
 
-        observation_img = np.reshape(observation_img, (self.n, 3, 80, 80))
-        observation_img_raw = np.reshape(observation_img_raw, (self.n, 3, 80, 80))
+        observation_img = np.reshape(observation_img, (self.n, 3, 240, 240))
+        observation_img_raw = np.reshape(observation_img_raw, (self.n, 3, 240, 240))
 
         # store tensors
         self.observation = T.from_numpy(observation)
@@ -70,7 +70,7 @@ if __name__ == '__main__':
 
     img = a.observation_img_raw[5000]
 
-    img = np.reshape(img, (80, 80, 3))
+    img = np.reshape(img, (240, 240, 3))
     imgplot = plt.imshow(img)
     plt.show()
 
