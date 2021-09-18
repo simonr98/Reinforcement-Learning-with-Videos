@@ -5,6 +5,7 @@ from RLV.torch_rlv.environments.utils import get_environment
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 from fastgrab import screenshot
+import torch as T
 
 
 
@@ -25,21 +26,19 @@ obs = env.reset()
 # plt.show()
 
 for i in range(50000):
-
-
     action, state_ = model.predict(obs)
-
-    #.render()
-
+    print(action)
+    #.render
     next_obs, reward, done, _ = env.step(action)
 
     if not done:
         obs = next_obs
     else:
-        img = env.render()
-        imgplot = plt.imshow(img)
-        plt.show()
+        # img = env.render()
+        # imgplot = plt.imshow(img)
+        # plt.show()
         obs = env.reset()
+        obs = T.from_numpy(obs)
 
 
 

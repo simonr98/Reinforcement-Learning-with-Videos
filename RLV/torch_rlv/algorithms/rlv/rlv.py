@@ -127,10 +127,12 @@ class RLV(SAC):
             obs = env.reset()
 
             for step in range(15000):
-                target_action, state_ = model.predict(obs)
-                next_obs, reward, done, _ = env.step(action)
+                action, state_ = model.predict(obs)
+                next_obs, _, done, _ = env.step(action)
+                target_action = th.from_numpy(action).to(self.device)
 
-                input_inverse_model = th.cat((obs, next_obs), dim=1)
+                input_inverse_model = th.cat((th.from_numpy(obs).to(self.device),
+                                              th.from_numpy(next_obs).to(self.device)), dim=1)
                 action_obs = self.inverse_model(input_inverse_model)
 
                 self.inverse_model_loss = self.inverse_model.criterion(action_obs, target_action)
@@ -140,10 +142,7 @@ class RLV(SAC):
                 self.inverse_model_loss.backward()
                 self.inverse_model.optimizer.step()
 
-                if not done:
-                    obs = next_obs
-                else:
-                    obs = env.reset()
+                obs = next_obs if not done else env.reset()
 
                 if step % 100 == 0:
                     print(f"Steps {step}, Loss: {self.inverse_model_loss.item()}")
