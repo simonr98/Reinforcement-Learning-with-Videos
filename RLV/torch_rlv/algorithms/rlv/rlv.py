@@ -103,24 +103,50 @@ class RLV(SAC):
         return reward
 
     def warmup_inverse_model(self):
-        for step in range(0, self.warmup_steps):
-            obs_data = self.action_free_replay_buffer.sample(batch_size=self.half_batch_size)
-            state_obs = obs_data.observations
-            target_action = obs_data.actions
-            next_state_obs = obs_data.next_observations
+        if self.env_name == 'acrobot_continuous':
+            for step in range(0, self.warmup_steps):
+                obs_data = self.action_free_replay_buffer.sample(batch_size=self.half_batch_size)
+                state_obs = obs_data.observations
+                target_action = obs_data.actions
+                next_state_obs = obs_data.next_observations
 
-            input_inverse_model = th.cat((state_obs, next_state_obs), dim=1)
-            action_obs = self.inverse_model(input_inverse_model)
+                input_inverse_model = th.cat((state_obs, next_state_obs), dim=1)
+                action_obs = self.inverse_model(input_inverse_model)
 
-            self.inverse_model_loss = self.inverse_model.criterion(action_obs, target_action)
+                self.inverse_model_loss = self.inverse_model.criterion(action_obs, target_action)
 
-            # optimize inverse model
-            self.inverse_model.optimizer.zero_grad()
-            self.inverse_model_loss.backward()
-            self.inverse_model.optimizer.step()
+                # optimize inverse model
+                self.inverse_model.optimizer.zero_grad()
+                self.inverse_model_loss.backward()
+                self.inverse_model.optimizer.step()
 
-            if step % 100 == 0:
-                print(f"Steps {step}, Loss: {self.inverse_model_loss.item()}")
+                if step % 100 == 0:
+                    print(f"Steps {step}, Loss: {self.inverse_model_loss.item()}")
+        else:
+            model = SAC.load("../../data/visual_pusher_data/478666_sac_trained_for_500000_steps")
+            obs = env.reset()
+
+            for step in range(15000):
+                target_action, state_ = model.predict(obs)
+                next_obs, reward, done, _ = env.step(action)
+
+                input_inverse_model = th.cat((obs, next_obs), dim=1)
+                action_obs = self.inverse_model(input_inverse_model)
+
+                self.inverse_model_loss = self.inverse_model.criterion(action_obs, target_action)
+
+                # optimize inverse model
+                self.inverse_model.optimizer.zero_grad()
+                self.inverse_model_loss.backward()
+                self.inverse_model.optimizer.step()
+
+                if not done:
+                    obs = next_obs
+                else:
+                    obs = env.reset()
+
+                if step % 100 == 0:
+                    print(f"Steps {step}, Loss: {self.inverse_model_loss.item()}")
 
     def warmup_encoder(self):
         for step in range(0, self.warmup_steps):
