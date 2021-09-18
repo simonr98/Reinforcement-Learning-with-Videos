@@ -8,8 +8,5 @@ class PairedBuffer():
         self.observation_img_raw = observation_img_raw
 
     def sample(self, batch_size=256):
-        lower_bound = np.random.randint(0, high=self.n - batch_size, size=None, dtype=int)
-        upper_bound = lower_bound + batch_size
-
-        return self.observation[lower_bound:upper_bound],\
-               self.observation_img[lower_bound:upper_bound], self.observation_img_raw[lower_bound:upper_bound]
+        batch = np.random.choice(self.n, batch_size)
+        return self.observation[batch], self.observation_img[batch], self.observation_img_raw[batch]

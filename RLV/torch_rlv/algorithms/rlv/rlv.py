@@ -127,29 +127,27 @@ class RLV(SAC):
                     print(f"Steps {step}, Loss: {self.inverse_model_loss.item()}")
         else:
             model = SAC.load("../data/visual_pusher_data/478666_sac_trained_for_500000_steps")
+            for step in range(self.warmup_steps):
+                state_obs, _, _, next_state_obs, _,  _, _ = self.action_free_replay_buffer.sample(batch_size=self.half_batch_size)
+                true_actions_approx = np.zeros((self.half_batch_size, self.env.action_space.shape[0]))
 
-            env = self.env
-            obs = env.reset()
+                for i in range(self.half_batch_size):
+                    true_actions_approx[i], _ = model.predict(state_obs[i])
 
-            for step in range(self.warmup_steps * 10):
-                action, state_ = model.predict(obs)
-                next_obs, _, done, _ = env.step(action)
-                target_action = th.from_numpy(action).to(self.device)
+                target_action = th.from_numpy(true_actions_approx).to(self.device)
 
-                input_inverse_model = th.cat((th.from_numpy(obs).to(self.device),
-                                              th.from_numpy(next_obs).to(self.device)), dim=1)
-                action_obs = self.inverse_model(input_inverse_model)
+                input_inverse_model = th.cat((state_obs, next_state_obs), dim=1)
 
-                self.inverse_model_loss = self.inverse_model.criterion(action_obs, target_action)
+                action_obs = self.inverse_model(input_inverse_model.float())
+
+                self.inverse_model_loss = self.inverse_model.criterion(action_obs, target_action.float())
 
                 # optimize inverse model
                 self.inverse_model.optimizer.zero_grad()
                 self.inverse_model_loss.backward()
                 self.inverse_model.optimizer.step()
 
-                obs = next_obs if not done else env.reset()
-
-                if step % 1000 == 0:
+                if step % 100 == 0:
                     print(f"Steps {step}, Loss: {self.inverse_model_loss.item()}")
 
     def warmup_encoder(self):
@@ -183,7 +181,9 @@ class RLV(SAC):
                                                          th.zeros((self.half_batch_size, 1), device=self.device))
 
         # Optimize Discriminator Loss
-        discriminator_loss = ((true_discriminator_loss + fake_discriminator_loss) / 2 + paired_loss) * 0.001
+        discriminator_loss = ((true_discriminator_loss + fake_discriminator_loss) / 2 + paired_loss) * 0.1
+
+        # 0.001
         discriminator_loss.backward(retain_graph=True)
         self.discriminator_optimizer.step()
 
@@ -376,7 +376,7 @@ class RLV(SAC):
             })
 
         if self.domain_shift:
-            self.logger.record("train/domain_shift_loss", self.domain_shift_loss)
+            self.logger.record("train/encoder_loss", self.encoder_loss)
 
         if len(ent_coef_losses) > 0:
             self.logger.record("train/ent_coef_loss", np.mean(ent_coef_losses))
