@@ -211,8 +211,10 @@ class RLV(SAC):
                     rewards=th.cat((data_int.rewards, reward_obs.detach()), dim=0))
 
             # visual_pusher case
+
+
             else:
-                state_obs, state_obs_img, state_obs_img_raw, next_state_obs, _, \
+                state_obs, state_obs_img, state_obs_img_raw, next_state_obs, next_state_obs_img, \
                 next_state_obs_img_raw, done_obs = self.action_free_replay_buffer.sample(batch_size=self.half_batch_size)
 
                 obs_int, action_int, next_obs_int, reward_int, done_int = data_int.observations, data_int.actions, \
