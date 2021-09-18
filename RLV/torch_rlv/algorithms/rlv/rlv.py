@@ -129,7 +129,7 @@ class RLV(SAC):
             self.train_encoder(h_int=observation, observation_img=state_obs_img)
 
             if step % 300 == 0:
-                print(f"Steps {step}, Encoder Loss: {loss.item()}")
+                print(f"Warmup Step {step} / {self.warmup_steps}")
 
 
     def train_encoder(self, h_int, observation_img):
