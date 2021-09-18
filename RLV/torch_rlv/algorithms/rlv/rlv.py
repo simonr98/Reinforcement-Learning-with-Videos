@@ -4,6 +4,8 @@ import torch.nn as nn
 import wandb
 import pickle
 
+from pathlib import Path
+
 from typing import Any, Dict, Optional, Union
 from torch.nn import functional as F
 from torch import autograd
@@ -45,6 +47,7 @@ class RLV(SAC):
         self.wandb_logging_parameters = wandb_logging_parameters
 
         self.inverse_model_loss = 0
+        self.encoder_loss = 0
         self.warmup_steps = warmup_steps
         self.beta_inverse_model = beta_inverse_model
         self.inverse_model = InverseModelNetwork(beta=beta_inverse_model, input_dims=env.observation_space.shape[-1] * 2,
@@ -123,10 +126,12 @@ class RLV(SAC):
                 if step % 100 == 0:
                     print(f"Steps {step}, Loss: {self.inverse_model_loss.item()}")
         else:
-            model = SAC.load("../../data/visual_pusher_data/478666_sac_trained_for_500000_steps")
+            model = SAC.load("../data/visual_pusher_data/478666_sac_trained_for_500000_steps")
+
+            env = self.env
             obs = env.reset()
 
-            for step in range(15000):
+            for step in range(self.warmup_steps * 10):
                 action, state_ = model.predict(obs)
                 next_obs, _, done, _ = env.step(action)
                 target_action = th.from_numpy(action).to(self.device)
@@ -144,7 +149,7 @@ class RLV(SAC):
 
                 obs = next_obs if not done else env.reset()
 
-                if step % 100 == 0:
+                if step % 1000 == 0:
                     print(f"Steps {step}, Loss: {self.inverse_model_loss.item()}")
 
     def warmup_encoder(self):
@@ -154,7 +159,7 @@ class RLV(SAC):
             self.train_encoder(observation=observation, observation_img=state_obs_img)
 
             if step % 300 == 0:
-                print(f"Warmup Step {step} / {self.warmup_steps}")
+                print(f"Warmup Step {step} / {self.warmup_steps} Loss {self.encoder_loss}")
 
 
     def train_encoder(self, observation, observation_img):
@@ -189,6 +194,8 @@ class RLV(SAC):
         generator_loss = self.domain_shift_loss(output, true_labels)
         generator_loss.backward()
         self.encoder_optimizer.step()
+
+        self.encoder_loss = generator_loss
 
 
     def train(self, gradient_steps: int, batch_size: int = 64) -> None:
@@ -266,8 +273,7 @@ class RLV(SAC):
                 reward_obs = th.zeros((self.half_batch_size, 1), device=self.device)
 
                 for i in range(0,self.half_batch_size):
-                    if done_obs[i]:
-                        reward_obs[i] = 10
+                    reward_obs[i] = 100 if done_obs[i] else 1
 
                 # replace the data used in SAC for each gradient steps by observational plus robot data
                 replay_data = ReplayBufferSamples(
@@ -277,7 +283,6 @@ class RLV(SAC):
                     dones=th.cat((done_int, done_obs.detach()), dim=0),
                     rewards=th.cat((reward_int, reward_obs.detach()), dim=0)
                 )
-
 
             # We need to sample because `log_std` may have changed between two gradient steps
             if self.use_sde:

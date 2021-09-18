@@ -42,7 +42,7 @@ class RlWithVideos(SoftActorCritic):
 
         domain_shift = False if self.env_name == 'acrobot_continuous' else True
 
-        self.model = RLV(warmup_steps=10000, total_steps=total_steps, beta_inverse_model=learning_rate_inverse_model, env_name=env_name,
+        self.model = RLV(warmup_steps=2000, total_steps=total_steps, beta_inverse_model=learning_rate_inverse_model, env_name=env_name,
                          policy=policy, env=self.env, learning_rate=learning_rate, buffer_size=buffer_size,
                          learning_starts=learning_starts, batch_size=batch_size, tau=tau, gamma=gamma,
                          train_freq=train_freq, gradient_steps=gradient_steps, optimize_memory_usage=optimize_memory_usage,

@@ -28,8 +28,8 @@ class AdapterPairedData:
 
         # numpy reshape operations
         observation = np.reshape(observation, (self.n, observation.shape[1]))
-        observation_img = np.reshape(observation_img, (self.n, 3, 240, 240))
-        observation_img_raw = np.reshape(observation_img_raw, (self.n, 3, 240, 240))
+        observation_img = np.reshape(observation_img, (self.n, 3, 120, 120))
+        observation_img_raw = np.reshape(observation_img_raw, (self.n, 3, 120, 120))
 
         # store tensors
         self.observation = T.from_numpy(observation)

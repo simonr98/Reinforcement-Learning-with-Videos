@@ -23,7 +23,7 @@ params:
   path: "../output/sac"   # location to save results in
   env_name: 'acrobot_continuous'
   algo_name: 'sac'
-  wandb_log: False
+  wandb_log: True
   policy: 'MlpPolicy'
   gamma: 0.99
   train_freq: 1
@@ -37,7 +37,7 @@ params:
   learning_starts: 1000
   batch_size: 256
   tau: 0.005
-  lr_inverse_model: 0.0003
+  lr_inverse_model: 0.0001
   acrobot_paper_data: False
   log_dir: '../output/saved_models'
 
@@ -50,7 +50,7 @@ repetitions: 1   # repeat 8 times
 # Experiment Parameters
 params:
   total_steps: 500000
-  project_name: 'rlv'
+  project_name: 'rlv_final'
   run_name: 'rlv'
   env_name: "visual_pusher"
   algo_name: 'rlv'

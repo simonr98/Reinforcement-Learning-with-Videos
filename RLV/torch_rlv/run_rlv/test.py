@@ -25,6 +25,8 @@ obs = env.reset()
 # imgplot = plt.imshow(img)
 # plt.show()
 
+print(env.action_space)
+
 for i in range(50000):
     action, state_ = model.predict(obs)
     print(action)

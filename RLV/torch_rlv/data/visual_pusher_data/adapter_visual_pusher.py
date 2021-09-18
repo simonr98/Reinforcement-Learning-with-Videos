@@ -48,8 +48,8 @@ class AdapterVisualPusher:
         action = np.reshape(action, (self.n, action.shape[1]))
         done = np.reshape(done, (self.n, 1))
 
-        observation_img = np.reshape(observation_img, (self.n, 3, 240, 240))
-        observation_img_raw = np.reshape(observation_img_raw, (self.n, 3, 240, 240))
+        observation_img = np.reshape(observation_img, (self.n, 3, 120, 120))
+        observation_img_raw = np.reshape(observation_img_raw, (self.n, 3, 120, 120))
 
         # store tensors
         self.observation = T.from_numpy(observation)
@@ -70,7 +70,7 @@ if __name__ == '__main__':
 
     img = a.observation_img_raw[100]
 
-    img = np.reshape(img, (240, 240, 3))
+    img = np.reshape(img, (120, 120, 3))
     imgplot = plt.imshow(img)
     plt.show()
 
