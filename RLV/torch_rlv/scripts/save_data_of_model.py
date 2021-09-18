@@ -112,7 +112,7 @@ class DatasetCreator():
 
 
 if __name__ == '__main__':
-    creator = DatasetCreator(env_name='visual_pusher', num_steps=20000, max_length_episode=220,
+    creator = DatasetCreator(env_name='visual_pusher', num_steps=2000, max_length_episode=220,
                              model_path="../data/visual_pusher_data/478666_sac_trained_for_500000_steps")
     creator.save_data_of_model()
 

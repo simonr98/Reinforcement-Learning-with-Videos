@@ -13,7 +13,7 @@ import matplotlib.image as mpimg
 class AdapterVisualPusher:
     def __init__(self):
         current_directory = os.path.dirname(__file__)
-        path = os.path.join(current_directory, '500000_SAC_steps_20000_samples.pickle')
+        path = os.path.join(current_directory, '500000_SAC_steps_10000_samples.pickle')
 
         # get data
         data = pickle.load(open(path, 'rb'))
@@ -68,7 +68,7 @@ if __name__ == '__main__':
     a = AdapterVisualPusher()
     print(a.observation_img.shape)
 
-    img = a.observation_img_raw[5000]
+    img = a.observation_img_raw[100]
 
     img = np.reshape(img, (240, 240, 3))
     imgplot = plt.imshow(img)
