@@ -126,15 +126,15 @@ class RLV(SAC):
         for step in range(0, self.warmup_steps):
             observation, _, _, _, _, _, _ = self.action_free_replay_buffer.sample()
             _, state_obs_img, _, _, _, _, _ = self.action_free_replay_buffer.sample()
-            self.train_encoder(h_int=observation, observation_img=state_obs_img)
+            self.train_encoder(observation=observation, observation_img=state_obs_img)
 
             if step % 300 == 0:
                 print(f"Warmup Step {step} / {self.warmup_steps}")
 
 
-    def train_encoder(self, h_int, observation_img):
+    def train_encoder(self, observation, observation_img):
 #        with autograd.detect_anomaly():
-        input_image, real_state, true_labels = observation_img, h_int, \
+        input_image, real_state, true_labels = observation_img, observation, \
                                                th.ones((self.half_batch_size,1), device=self.device)
 
         fake_state = self.encoder(input_image.float())
