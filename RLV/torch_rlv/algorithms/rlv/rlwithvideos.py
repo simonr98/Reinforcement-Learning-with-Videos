@@ -57,7 +57,6 @@ class RlWithVideos(SoftActorCritic):
         else:
             self.model.warmup_encoder()
             self.model.warmup_inverse_model()
-            pass
 
         callback = SaveOnBestTrainingRewardCallback(check_freq=1000, log_dir=self.log_dir)
         self.model.learn(total_timesteps=total_timesteps, callback=callback, log_interval=4)

@@ -20,7 +20,7 @@ from stable_baselines3.common.utils import polyak_update
 from RLV.torch_rlv.models.convnet import ConvNet
 from RLV.torch_rlv.models.discriminator import DiscriminatorNetwork
 from RLV.torch_rlv.data.visual_pusher_data.adapter_visual_pusher import AdapterVisualPusher
-from RLV.torch_rlv.utils.action_free_buffer import ActionFreeReplayBuffer
+from RLV.torch_rlv.utils.action_free_buffer import ActionFreeReplayBuffer, SmallReplayBuffer
 from RLV.torch_rlv.utils.paired_buffer import PairedBuffer
 from RLV.torch_rlv.data.visual_pusher_data.adapter_paired_data import AdapterPairedData
 
@@ -126,17 +126,16 @@ class RLV(SAC):
                 if step % 100 == 0:
                     print(f"Steps {step}, Loss: {self.inverse_model_loss.item()}")
         else:
-            model = SAC.load("../data/visual_pusher_data/478666_sac_trained_for_500000_steps")
+            simulation_data = AdapterVisualPusher()
+            actions = simulation_data.action.to(self.device)
+            observations = simulation_data.observation.to(self.device)
+            next_observations = simulation_data.next_observation.to(self.device)
+            buffer = SmallReplayBuffer(observation=observations, action=actions, next_observation=next_observations)
+
             for step in range(self.warmup_steps):
-                state_obs, _, _, next_state_obs, _,  _, _ = self.action_free_replay_buffer.sample(batch_size=self.half_batch_size)
-                true_actions_approx = np.zeros((self.half_batch_size, self.env.action_space.shape[0]))
+                obs, target_action, next_obs = buffer.sample(self.half_batch_size)
 
-                for i in range(self.half_batch_size):
-                    true_actions_approx[i], _ = model.predict(state_obs[i])
-
-                target_action = th.from_numpy(true_actions_approx).to(self.device)
-
-                input_inverse_model = th.cat((state_obs, next_state_obs), dim=1)
+                input_inverse_model = th.cat((obs, next_obs), dim=1)
 
                 action_obs = self.inverse_model(input_inverse_model.float())
 
@@ -181,7 +180,7 @@ class RLV(SAC):
                                                          th.zeros((self.half_batch_size, 1), device=self.device))
 
         # Optimize Discriminator Loss
-        discriminator_loss = ((true_discriminator_loss + fake_discriminator_loss) / 2 + paired_loss) * 0.1
+        discriminator_loss = ((true_discriminator_loss + fake_discriminator_loss) / 2 + paired_loss) * 0.001
 
         # 0.001
         discriminator_loss.backward(retain_graph=True)

@@ -6,7 +6,6 @@ class ActionFreeReplayBuffer():
         self.observation = observation
 
         self.observation_img = observation_img
-
         self.observation_img_raw = observation_img_raw
 
         self.done = done[:-1]
@@ -31,3 +30,19 @@ class ActionFreeReplayBuffer():
         next_obs_img_raw = self.next_observation_img_raw[batch]
         done = self.done[batch]
         return obs, obs_img, obs_img_raw, next_obs, next_obs_img, next_obs_img_raw, done
+
+
+class SmallReplayBuffer():
+    def __init__(self, observation, action, next_observation):
+        self.n = len(observation) - 1
+        self.observation = observation
+        self.action = action
+        self.next_observation = next_observation
+
+    def sample(self, batch_size=256):
+        batch = np.random.choice(self.n, batch_size)
+        obs = self.observation[batch]
+        action = self.action[batch]
+        next_obs = self.next_observation[batch]
+
+        return obs, action, next_obs
