@@ -502,6 +502,8 @@ class OffPolicyAlgorithm(BaseAlgorithm):
         reward: np.ndarray,
         done: np.ndarray,
         infos: List[Dict[str, Any]],
+        obs_img: np.ndarray,
+        next_obs_img: np.ndarray,
     ) -> None:
         """
         Store transition in the replay buffer.
@@ -541,6 +543,8 @@ class OffPolicyAlgorithm(BaseAlgorithm):
             reward_,
             done,
             infos,
+            obs_img,
+            next_obs_img
         )
 
         self._last_obs = new_obs
@@ -606,7 +610,12 @@ class OffPolicyAlgorithm(BaseAlgorithm):
                 action, buffer_action = self._sample_action(learning_starts, action_noise)
 
                 # Rescale and perform action
+                obs_img = env.render()
+
                 new_obs, reward, done, infos = env.step(action)
+
+                new_obs_img = env.render()
+
 
                 self.num_timesteps += 1
                 episode_timesteps += 1
@@ -624,7 +633,9 @@ class OffPolicyAlgorithm(BaseAlgorithm):
                 self._update_info_buffer(infos, done)
 
                 # Store data in replay buffer (normalized action and unnormalized observation)
-                self._store_transition(replay_buffer, buffer_action, new_obs, reward, done, infos)
+
+
+                self._store_transition(replay_buffer, buffer_action, new_obs, reward, done, infos, obs_img, new_obs_img)
 
                 self._update_current_progress_remaining(self.num_timesteps, self._total_timesteps)
 

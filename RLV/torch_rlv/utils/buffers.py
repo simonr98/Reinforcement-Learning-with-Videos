@@ -47,6 +47,8 @@ class BaseBuffer(ABC):
         self.action_space = action_space
         self.obs_shape = get_obs_shape(observation_space)
 
+        self.img_shape = (10, 10, 3)
+
         self.action_dim = get_action_dim(action_space)
         self.pos = 0
         self.full = False
@@ -187,11 +189,17 @@ class ReplayBuffer(BaseBuffer):
 
         self.observations = np.zeros((self.buffer_size, self.n_envs) + self.obs_shape, dtype=observation_space.dtype)
 
+        self.observations_img = np.zeros((self.buffer_size, self.n_envs) + self.img_shape , dtype=observation_space.dtype)
+
+
         if optimize_memory_usage:
             # `observations` contains also the next observation
             self.next_observations = None
+            self.next_observations_img = None
         else:
             self.next_observations = np.zeros((self.buffer_size, self.n_envs) + self.obs_shape, dtype=observation_space.dtype)
+            self.next_observations_img = np.zeros((self.buffer_size, self.n_envs) + self.img_shape,
+                                                  dtype=observation_space.dtype)
 
         self.actions = np.zeros((self.buffer_size, self.n_envs, self.action_dim), dtype=action_space.dtype)
 
@@ -225,14 +233,20 @@ class ReplayBuffer(BaseBuffer):
         reward: np.ndarray,
         done: np.ndarray,
         infos: List[Dict[str, Any]],
+        obs_img: np.ndarray,
+        next_obs_img: np.ndarray
     ) -> None:
         # Copy to avoid modification by reference
         self.observations[self.pos] = np.array(obs).copy()
 
+        self.observations_img[self.pos] = np.array(obs_img).copy()
+
         if self.optimize_memory_usage:
             self.observations[(self.pos + 1) % self.buffer_size] = np.array(next_obs).copy()
+            self.observations_img[(self.pos + 1) % self.buffer_size] = np.array(next_obs_img).copy()
         else:
             self.next_observations[self.pos] = np.array(next_obs).copy()
+            self.next_observations_img[self.pos] = np.array(next_obs_img).copy()
 
         self.actions[self.pos] = np.array(action).copy()
         self.rewards[self.pos] = np.array(reward).copy()
@@ -271,8 +285,10 @@ class ReplayBuffer(BaseBuffer):
 
         if self.optimize_memory_usage:
             next_obs = self._normalize_obs(self.observations[(batch_inds + 1) % self.buffer_size, 0, :], env)
+            next_obs_img = self._normalize_obs(self.observations_img[(batch_inds + 1) % self.buffer_size, 0, :], env)
         else:
             next_obs = self._normalize_obs(self.next_observations[batch_inds, 0, :], env)
+            next_obs_img = self._normalize_obs(self.next_observations_img[batch_inds, 0, :], env)
 
         data = (
             self._normalize_obs(self.observations[batch_inds, 0, :], env),
@@ -282,6 +298,8 @@ class ReplayBuffer(BaseBuffer):
             # deactivated by default (timeouts is initialized as an array of False)
             self.dones[batch_inds] * (1 - self.timeouts[batch_inds]),
             self._normalize_reward(self.rewards[batch_inds], env),
+            self.observations_img,
+            next_obs_img
         )
         return ReplayBufferSamples(*tuple(map(self.to_torch, data)))
 

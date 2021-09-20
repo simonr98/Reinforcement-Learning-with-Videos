@@ -23,7 +23,7 @@ params:
   path: "../output/sac"   # location to save results in
   env_name: 'acrobot_continuous'
   algo_name: 'sac'
-  wandb_log: True
+  wandb_log: False
   policy: 'MlpPolicy'
   gamma: 0.99
   train_freq: 1
@@ -53,6 +53,6 @@ params:
   project_name: 'rlv_final'
   run_name: 'rlv'
   env_name: "visual_pusher"
-  algo_name: 'rlv'
+  algo_name: 'sac'
   policy: 'MlpPolicy'
 
