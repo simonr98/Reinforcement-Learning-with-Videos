@@ -330,6 +330,12 @@ class RLV(SAC):
             critic_loss.backward()
             self.critic.optimizer.step()
 
+            # Optimize Inverse Model
+            # optimize inverse model
+            self.inverse_model.optimizer.zero_grad()
+            self.inverse_model_loss.backward()
+            self.inverse_model.optimizer.step()
+
             # Compute actor loss
             q_values_pi = th.cat(self.critic.forward(replay_data.observations, actions_pi), dim=1)
             min_qf_pi, _ = th.min(q_values_pi, dim=1, keepdim=True)
