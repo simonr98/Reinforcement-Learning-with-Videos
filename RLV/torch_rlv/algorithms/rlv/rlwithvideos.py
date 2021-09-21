@@ -44,7 +44,7 @@ class RlWithVideos(SoftActorCritic):
 
         self.model = RLV(warmup_steps=2000, total_steps=total_steps, beta_inverse_model=learning_rate_inverse_model, env_name=env_name,
                          policy=policy, env=self.env, learning_rate=learning_rate, buffer_size=buffer_size,
-                         learning_starts=learning_starts, batch_size=batch_size, tau=tau, gamma=gamma,
+                         learning_starts=learning_starts, batch_size=batch_size, tau=tau, gamma=gamma, policy_kwargs=policy_kwargs,
                          train_freq=train_freq, gradient_steps=gradient_steps, optimize_memory_usage=optimize_memory_usage,
                          ent_coef=ent_coef, target_update_interval=target_update_interval, target_entropy=target_entropy,
                          domain_shift=domain_shift, device=device, _init_setup_model=_init_setup_model, wandb_log=wandb_log,

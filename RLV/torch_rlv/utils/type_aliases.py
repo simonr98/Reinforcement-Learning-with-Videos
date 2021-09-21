@@ -48,6 +48,13 @@ class ReplayBufferSamples(NamedTuple):
     observations_img: th.Tensor
     next_observations_img: th.Tensor
 
+class ReplayBufferSamplesSmall(NamedTuple):
+    observations: th.Tensor
+    actions: th.Tensor
+    next_observations: th.Tensor
+    dones: th.Tensor
+    rewards: th.Tensor
+
 
 class DictReplayBufferSamples(ReplayBufferSamples):
     observations: TensorDict

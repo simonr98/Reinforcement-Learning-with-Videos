@@ -6,6 +6,12 @@ import pickle
 
 from pathlib import Path
 
+from RLV.torch_rlv.algorithms.rlv.params import params
+from RLV.torch_rlv.algorithms.domain_adaptation import eval_src, eval_tgt, train_src
+from RLV.torch_rlv.models.discriminator import Discriminator
+from RLV.torch_rlv.models.lenet import LeNetClassifier, LeNetEncoder
+from RLV.torch_rlv.models.utils import init_model
+
 from typing import Any, Dict, Optional, Union
 from torch.nn import functional as F
 from torch import autograd
@@ -13,7 +19,7 @@ from RLV.torch_rlv.models.inverse_model_network import InverseModelNetwork
 from RLV.torch_rlv.utils.buffers import ReplayBuffer
 from RLV.torch_rlv.algorithms.sac.sac import SAC
 from stable_baselines3.common.noise import ActionNoise
-from RLV.torch_rlv.utils.type_aliases import ReplayBufferSamples
+from RLV.torch_rlv.utils.type_aliases import ReplayBufferSamples, ReplayBufferSamplesSmall
 from RLV.torch_rlv.data.acrobot_paper_data.adapter_acrobot import AcrobotAdapterPaper
 from RLV.torch_rlv.data.acrobot_continuous_data.adapter_acrobot import AcrobotAdapter
 from stable_baselines3.common.utils import polyak_update
@@ -29,16 +35,16 @@ class RLV(SAC):
     def __init__(self, env_name, total_steps, warmup_steps=1500, beta_inverse_model=0.0003, policy='MlpPolicy',
                  env=None, learning_rate=0.0003, buffer_size=1000000, learning_starts=1000, batch_size=256,
                  tau=0.005, gamma=0.99, train_freq=1, gradient_steps=1, optimize_memory_usage=False, ent_coef='auto',
-                 target_update_interval=10, target_entropy='auto', wandb_log=False, project_name='rlv',
-                 domain_shift=True, device: Union[th.device, str] = "auto", _init_setup_model: bool = True,
-                 wandb_logging_parameters={}, wandb_config={}, verbose=1):
+                 target_update_interval=10, target_entropy='auto', wandb_log=False, policy_kwargs: Dict[str, Any] = None,
+                 project_name='rlv', domain_shift=True, device: Union[th.device, str] = "auto",
+                 _init_setup_model: bool = True, wandb_logging_parameters={}, wandb_config={}, verbose=1):
         super(RLV, self).__init__(
             env_name=env_name, total_steps=total_steps, policy=policy, env=env, learning_rate=learning_rate,
             buffer_size=buffer_size, learning_starts=learning_starts, batch_size=batch_size, tau=tau, gamma=gamma,
             train_freq=train_freq, gradient_steps=gradient_steps, optimize_memory_usage=optimize_memory_usage,
             ent_coef=ent_coef, target_update_interval=target_update_interval, wandb_config=wandb_config,
             target_entropy=target_entropy, wandb_log=wandb_log, device=device, _init_setup_model=_init_setup_model,
-            verbose=verbose)
+            verbose=verbose, policy_kwargs=policy_kwargs)
 
         self.half_batch_size = batch_size
         self.target_update_interval = target_update_interval
@@ -53,26 +59,21 @@ class RLV(SAC):
         self.inverse_model = InverseModelNetwork(beta=beta_inverse_model, input_dims=env.observation_space.shape[-1] * 2,
                                                  output_dims=env.action_space.shape[-1], fc1_dims=64, fc2_dims=64,
                                                  fc3_dims=64).to(self.device)
-
         self.domain_shift = domain_shift
         if self.domain_shift:
-            self.encoder = ConvNet(output_dims=self.env.observation_space.shape[-1]).to(self.device)
-            self.discriminator = DiscriminatorNetwork(input_dims=self.env.observation_space.shape[-1],
-                                                      beta=3e-8, fc1_dims=64, fc2_dims=64, fc3_dims=64).to(self.device)
-            # Optimizers
-            self.encoder_optimizer = th.optim.Adam(self.encoder.parameters(), lr=3e-8)
-            self.discriminator_optimizer = th.optim.Adam(self.discriminator.parameters(), lr=3e-8)
-
-            # loss
-            self.domain_shift_loss = nn.BCELoss()
-            self.paired_loss = nn.MSELoss()
-
+            # load models
+            self.src_encoder = init_model(net=LeNetEncoder())
+            self.src_classifier = init_model(net=LeNetClassifier())
+            self.tgt_encoder = init_model(net=LeNetEncoder())
+            self.critic_discrim = init_model(Discriminator(input_dims=params.d_input_dims, hidden_dims=params.d_hidden_dims,
+                                                           output_dims=params.d_output_dims))
             # data
             simulation_data = AdapterVisualPusher()
             paired_data = AdapterPairedData()
             self.paired_buffer = PairedBuffer(observation=paired_data.observation.to(self.device),
                                               observation_img=paired_data.observation_img.to(self.device),
                                               observation_img_raw=paired_data.observation_img_raw.to(self.device))
+            self.paired_loss = nn.MSELoss()
 
 
         self.action_free_replay_buffer = ReplayBuffer(buffer_size=buffer_size,
@@ -85,7 +86,6 @@ class RLV(SAC):
                                         observation_img=simulation_data.observation_img.to(self.device),
                                         observation_img_raw=simulation_data.observation_img_raw.to(self.device),
                                         done=simulation_data.done.to(self.device))
-
 
     def fill_action_free_buffer_acrobot(self, paper_data=False, num_steps=200000, replay_buffer=None):
         data = AcrobotAdapterPaper() if paper_data else AcrobotAdapter()
@@ -126,75 +126,19 @@ class RLV(SAC):
                 if step % 100 == 0:
                     print(f"Steps {step}, Loss: {self.inverse_model_loss.item()}")
         else:
-            simulation_data = AdapterVisualPusher()
-            actions = simulation_data.action.to(self.device)
-            observations = simulation_data.observation.to(self.device)
-            next_observations = simulation_data.next_observation.to(self.device)
-            buffer = SmallReplayBuffer(observation=observations, action=actions, next_observation=next_observations)
-
-            for step in range(self.warmup_steps):
-                obs, target_action, next_obs = buffer.sample(self.half_batch_size)
-
-                input_inverse_model = th.cat((obs, next_obs), dim=1)
-
-                action_obs = self.inverse_model(input_inverse_model.float())
-
-                self.inverse_model_loss = self.inverse_model.criterion(action_obs, target_action.float())
-
-                # optimize inverse model
-                self.inverse_model.optimizer.zero_grad()
-                self.inverse_model_loss.backward()
-                self.inverse_model.optimizer.step()
-
-                if step % 100 == 0:
-                    print(f"Steps {step}, Loss: {self.inverse_model_loss.item()}")
+            pass
 
     def warmup_encoder(self):
         for step in range(0, self.warmup_steps):
-            observation, _, _, _, _, _, _ = self.action_free_replay_buffer.sample()
-            _, state_obs_img, _, _, _, _, _ = self.action_free_replay_buffer.sample()
-            self.train_encoder(observation=observation, observation_img=state_obs_img)
+            observations, observation_img, observation_img_raw = self.paired_buffer.sample(self.half_batch_size)
 
-            if step % 300 == 0:
-                print(f"Warmup Step {step} / {self.warmup_steps} Loss {self.encoder_loss}")
-
-
-    def train_encoder(self, observation, observation_img):
-#        with autograd.detect_anomaly():
-        input_image, real_state, true_labels = observation_img, observation, \
-                                               th.ones((self.half_batch_size,1), device=self.device)
-
-        fake_state = self.encoder(input_image.float())
-
-        # add paired data // obs = filtered, int = raw
-        paired_obs, paired_img_obs, _ = self.paired_buffer.sample()
-        paired_loss = self.paired_loss(paired_obs.float(), self.encoder(paired_img_obs.float()))
-
-        # Train the discriminator on the true/generated data
-        self.discriminator_optimizer.zero_grad()
-        true_discriminator_out = self.discriminator(real_state.float())
-        true_discriminator_loss = self.domain_shift_loss(true_discriminator_out.float(), true_labels.float())
-
-        fake_discriminator_out = self.discriminator(fake_state)
-        fake_discriminator_loss = self.domain_shift_loss(fake_discriminator_out,
-                                                         th.zeros((self.half_batch_size, 1), device=self.device))
-
-        # Optimize Discriminator Loss
-        discriminator_loss = ((true_discriminator_loss + fake_discriminator_loss) / 2 + paired_loss) * 0.001
-
-        # 0.001
-        discriminator_loss.backward(retain_graph=True)
-        self.discriminator_optimizer.step()
-
-        output = self.discriminator(fake_state)
-
-        # Train the generator
-        self.encoder_optimizer.zero_grad()
-        generator_loss = self.domain_shift_loss(output, true_labels)
-        generator_loss.backward()
-        self.encoder_optimizer.step()
-
-        self.encoder_loss = generator_loss
+            if step % 100 == 0:
+                print(observation_img.shape)
+                print(observation_img_raw.shape)
+                eval_src(self.src_encoder, self.src_classifier, observation_img, observations)
+            else:
+                self.src_encoder, self.src_classifier = train_src(self.src_encoder, self.src_classifier,
+                                                                  observation_img, observations)
 
 
     def train(self, gradient_steps: int, batch_size: int = 64) -> None:
@@ -234,7 +178,7 @@ class RLV(SAC):
                     reward_obs[i] = self.set_reward_acrobot(done_obs=done_obs[i])
 
                 # replace the data used in SAC for each gradient steps by observational plus robot data
-                replay_data = ReplayBufferSamples(
+                replay_data = ReplayBufferSamplesSmall(
                     observations=th.cat((data_int.observations, state_obs.detach()), dim=0),
                     actions=th.cat((data_int.actions, action_obs.detach()), dim=0),
                     next_observations=th.cat((data_int.next_observations, next_state_obs.detach()), dim=0),
@@ -242,21 +186,18 @@ class RLV(SAC):
                     rewards=th.cat((data_int.rewards, reward_obs.detach()), dim=0))
 
             # visual_pusher case
-
-
             else:
-                state_obs, state_obs_img, state_obs_img_raw, next_state_obs, next_state_obs_img, \
-                next_state_obs_img_raw, done_obs = self.action_free_replay_buffer.sample(batch_size=self.half_batch_size)
+                _, state_obs_img, _, _, next_state_obs_img, _, done_obs = self.action_free_replay_buffer.sample(batch_size=self.half_batch_size)
 
-                obs_int, action_int, next_obs_int, reward_int, done_int = data_int.observations, data_int.actions, \
-                                                                          data_int.next_observations, data_int.rewards, \
-                                                                          data_int.dones
-
+                obs_int, action_int, next_obs_int, reward_int, \
+                done_int, state_int_img, next_state_int_img = data_int.observations, data_int.actions, \
+                                                          data_int.next_observations, data_int.rewards, \
+                                                          data_int.dones, data_int.observations_img, \
+                                                          data_int.next_observations_img
 
                 # Get domain invariant encodings
-                h_int, h_int_next = obs_int, next_obs_int
-                h_obs, h_obs_next = self.encoder(state_obs_img.float()), self.encoder(next_state_obs_img.float())
-
+                h_int, h_int_next = self.tgt_encoder(state_int_img), self.tgt_encoder(next_state_int_img)
+                h_obs, h_obs_next = self.tgt_encoder(state_obs_img), self.tgt_encoder(next_state_obs_img)
 
                 #Inverse Model
                 # inputs
@@ -267,7 +208,6 @@ class RLV(SAC):
                 predicted_int_action = self.inverse_model(int_input_inverse_model.detach())
                 predicted_obs_action = self.inverse_model(obs_input_inverse_model.detach())
 
-
                 self.inverse_model_loss = self.inverse_model.criterion(predicted_int_action, action_int)
                 reward_obs = th.zeros((self.half_batch_size, 1), device=self.device)
 
@@ -275,7 +215,7 @@ class RLV(SAC):
                     reward_obs[i] = 100 if done_obs[i] else 1
 
                 # replace the data used in SAC for each gradient steps by observational plus robot data
-                replay_data = ReplayBufferSamples(
+                replay_data = ReplayBufferSamplesSmall(
                     observations=th.cat((h_int.detach(), h_obs.detach()), dim=0),
                     actions=th.cat((action_int, predicted_obs_action.detach()), dim=0),
                     next_observations=th.cat((h_int_next.detach(), h_obs_next.detach()), dim=0),
@@ -330,6 +270,11 @@ class RLV(SAC):
             critic_loss.backward()
             self.critic.optimizer.step()
 
+            # optimize inverse model
+            self.inverse_model.optimizer.zero_grad()
+            self.inverse_model_loss.backward()
+            self.inverse_model.optimizer.step()
+
             # Compute actor loss
             q_values_pi = th.cat(self.critic.forward(replay_data.observations, actions_pi), dim=1)
             min_qf_pi, _ = th.min(q_values_pi, dim=1, keepdim=True)
@@ -346,7 +291,8 @@ class RLV(SAC):
                 polyak_update(self.critic.parameters(), self.critic_target.parameters(), self.tau)
 
             if not self.env_name == 'acrobot_continuous':
-                self.train_encoder(observation=h_int, observation_img=state_obs_img)
+                self.tgt_encoder.load_state_dict(self.src_encoder.state_dict())
+                self.tgt_encoder = train_tgt(state_obs_img, state_int_img)
 
         self._n_updates += gradient_steps
 
@@ -381,3 +327,90 @@ class RLV(SAC):
             self.logger.record("train/ent_coef_loss", np.mean(ent_coef_losses))
             if self.wandb_log:
                 self.wandb_logging_parameters.update({"train/ent_coef_loss":np.mean(ent_coef_losses)})
+
+    def train_tgt(src_encoder, images_src, images_tgt):
+        """Train encoder for target domain."""
+        ####################
+        # 1. setup network #
+        ####################
+
+        # set train state for Dropout and BN layers
+        self.tgt_encoder.train()
+        self.critic_discrim.train()
+
+        # setup criterion and optimizer
+        criterion = nn.CrossEntropyLoss()
+        optimizer_tgt = optim.Adam(tgt_encoder.parameters(),
+                                   lr=params.c_learning_rate,
+                                   betas=(params.beta1, params.beta2))
+        optimizer_critic = optim.Adam(critic.parameters(),
+                                      lr=params.d_learning_rate,
+                                      betas=(params.beta1, params.beta2))
+
+        ####################
+        # 2. train network #
+        ####################
+        # 2.1 train discriminator #
+        ###########################
+
+        # make images variable
+        images_src = make_variable(images_src)
+        images_tgt = make_variable(images_tgt)
+
+        # zero gradients for optimizer
+        optimizer_critic.zero_grad()
+
+        # extract and concat features
+        feat_src = self.src_encoder(images_src)
+        feat_tgt = self.tgt_encoder(images_tgt)
+        feat_concat = torch.cat((feat_src, feat_tgt), 0)
+
+        # predict on discriminator
+        pred_concat = self.critic_discrim(feat_concat.detach())
+
+        # prepare real and fake label
+        label_src = make_variable(torch.ones(feat_src.size(0)).long())
+        label_tgt = make_variable(torch.zeros(feat_tgt.size(0)).long())
+        label_concat = torch.cat((label_src, label_tgt), 0)
+
+
+        paired_img_obs, paired_img_int = self.paired_buffer.sample()
+
+        paired_loss = self.paired_loss(self.encoder(paired_img_int.float()),
+                                       self.encoder(paired_img_obs.float()))
+
+        # compute loss for critic
+        loss_critic = criterion(pred_concat, label_concat) + paired_loss
+        loss_critic.backward()
+
+        # optimize critic
+        optimizer_critic.step()
+
+        pred_cls = torch.squeeze(pred_concat.max(1)[1])
+        acc = (pred_cls == label_concat).float().mean()
+
+        ############################
+        # 2.2 train target encoder #
+        ############################
+
+        # zero gradients for optimizer
+        optimizer_critic.zero_grad()
+        optimizer_tgt.zero_grad()
+
+        # extract and target features
+        feat_tgt = tgt_encoder(images_tgt)
+
+        # predict on discriminator
+        pred_tgt = critic(feat_tgt)
+
+        # prepare fake labels
+        label_tgt = make_variable(torch.ones(feat_tgt.size(0)).long())
+
+        # compute loss for target encoder
+        loss_tgt = criterion(pred_tgt, label_tgt)
+        loss_tgt.backward()
+
+        # optimize target encoder
+        optimizer_tgt.step()
+
+        # return {'loss_critic': loss_critic.data[0], 'loss_tgt': loss_tgt.data[0], 'acc': acc.data[0]}

@@ -21,5 +21,6 @@ def init_algorithm(alg_name, experiment):
                             gradient_steps=experiment.gradient_steps, project_name=experiment.project_name,
                             run_name=experiment.run_name, acrobot_paper_data=experiment.acrobot_paper_data, verbose=1,
                             log_dir=experiment.log_dir,  total_steps=experiment.total_steps,
-                            algo_name=experiment.algo_name, device=experiment.device)
+                            algo_name=experiment.algo_name, device=experiment.device,
+                            policy_kwargs = dict(net_arch=dict(pi=[512, 256, 256], qf=[512, 256, 256])))
 

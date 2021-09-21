@@ -53,6 +53,6 @@ params:
   project_name: 'rlv_final'
   run_name: 'rlv'
   env_name: "visual_pusher"
-  algo_name: 'sac'
+  algo_name: 'rlv'
   policy: 'MlpPolicy'
 
