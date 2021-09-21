@@ -10,7 +10,7 @@ class AdapterPairedData:
     def __init__(self):
         current_directory = os.path.dirname(__file__)
 
-        path = os.path.join(current_directory, 'paired_500000_SAC_steps_50000_samples.pickle')
+        path = os.path.join(current_directory, 'paired_500000_SAC_steps_80000_samples.pickle')
         data = pickle.load(open(path, 'rb'))
 
         # get data
