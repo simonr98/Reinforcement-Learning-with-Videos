@@ -1,6 +1,6 @@
 # rl-with-videos
 
-This repository is the official implementation of the following paper:
+This repository is an implementation of the following paper:
 
 **Reinforcement Learning with Videos:Combining Offline Observations with Interaction**<br/>
 Karl Schmeckpeper, Oleh Rybkin, Kostas Daniilidis, Sergey Levine, and Chelsea Finn <br/>
