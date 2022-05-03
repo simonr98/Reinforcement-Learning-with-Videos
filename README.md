@@ -9,16 +9,4 @@ Karl Schmeckpeper, Oleh Rybkin, Kostas Daniilidis, Sergey Levine, and Chelsea Fi
 
 
 
-## Citation
-If this codebase helps you in your academic research, you are encouraged to cite our paper. Here is an example bibtex:
-```
-@article{schmeckpeper2020rlv,
-  title={Reinforcement Learning with Videos: Combining Offline Observations with Interaction},
-  author={Schmeckpeper, Karl and Rybkin, Oleh and Daniilidis, Kostas and Levine, Sergey and Finn, Chelsea},
-  journal={Conference on Robot Learning},
-  year={2020}
-}
-```
-
-
 
